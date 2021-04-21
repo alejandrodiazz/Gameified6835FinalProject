@@ -48,7 +48,7 @@ class poseDetector():
 	
 
 def main():
-	# cap = cv2.VideoCapture('sample_video.mp4') 
+	# cap = cv2.VideoCapture('videos/sample_video.mp4') 
 	cap = cv2.VideoCapture(0) 	# gets live video feed
 	pTime = 0
 	detector = poseDetector()
