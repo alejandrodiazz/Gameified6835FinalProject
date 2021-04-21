@@ -31,15 +31,15 @@ while True:
 
 		cv2.waitKey(1)
 
-	except: # reaches end of mp4 or mov file
+	except: # reaches end of mp4 or mov file and saves trainer data
 
-		with open('squats.csv', mode='w') as trainer_file:
+		with open('squats.csv', mode='w+') as trainer_file:
 		    trainer_writer = csv.writer(trainer_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 		    frame_rate = 30
 		    seconds = 0
 		    trainer_writer.writerow(["time"]+[str(number) for number in range(33)])
 		    for index, line in enumerate(all_data):
-		    	seconds = (1/30)*index
+		    	seconds = (1/30)*index*1000
 		    	trainer_writer.writerow([seconds]+line)
 
 		break

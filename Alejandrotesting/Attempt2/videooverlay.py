@@ -5,7 +5,6 @@ import numpy as np
 # the web camera frame has this resolution: (720, 1280, 3)
 
 current_milli_time = lambda: int(round(time.time() * 1000))
-
 # Camera feed
 cap_cam = cv2.VideoCapture(0)
 ret, frame_cam = cap_cam.read()
@@ -34,6 +33,7 @@ while True:
     ret, frame_vid = cap_vid.read()
     frame_cam = cv2.flip(frame_cam,1)
     # Select the region in the background where we want to add the image and add the images using cv2.addWeighted()
+    print(time_passed)
     print(frame_cam.shape)
     frame_vid = cv2.resize(frame_vid, (height, width), interpolation = cv2.INTER_AREA)
     added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
