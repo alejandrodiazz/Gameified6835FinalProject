@@ -40,7 +40,9 @@ elif args.device == "gpu":
     print("Using GPU device")
 
 
+
 vid = cv2.VideoCapture(0)
+n = 0
 while(True):
       
     # Capture the video frame
@@ -51,20 +53,22 @@ while(True):
     if not hasFrame:
         cv2.waitKey()
         break
-    print("1: ", time.time()-t)
+    
+
+
     frameWidth = frame.shape[1]
     frameHeight = frame.shape[0]
 
-    inpBlob = cv2.dnn.blobFromImage(frame, 1.0 / 255, (inWidth, inHeight),(0, 0, 0), swapRB=False, crop=False)
+    inpBlob = cv2.dnn.blobFromImage(frame, 1.0 / 255, (inWidth, inHeight),
+                              (0, 0, 0), swapRB=False, crop=False)
     net.setInput(inpBlob)
     output = net.forward()
 
-    print("2: ", time.time()-t)
     H = output.shape[2]
     W = output.shape[3]
     # Empty list to store the detected keypoints
     points = []
-    print("1: ", time.time()-t)
+
     for i in range(nPoints):
         # confidence map of corresponding body's part.
         probMap = output[0, i, :, :]
@@ -84,7 +88,6 @@ while(True):
             points.append((int(x), int(y)))
         else :
             points.append(None)
-    
 
     # Draw Skeleton
     for pair in POSE_PAIRS:
@@ -95,8 +98,6 @@ while(True):
             cv2.line(frame, points[partA], points[partB], (0, 255, 255), 3, lineType=cv2.LINE_AA)
             cv2.circle(frame, points[partA], 8, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
             cv2.circle(frame, points[partB], 8, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
-
-    
 
     cv2.putText(frame, "time taken = {:.2f} sec".format(time.time() - t), (50, 50), cv2.FONT_HERSHEY_COMPLEX, .8, (255, 50, 0), 2, lineType=cv2.LINE_AA)
     # cv2.putText(frame, "OpenPose using OpenCV", (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 50, 0), 2, lineType=cv2.LINE_AA)
