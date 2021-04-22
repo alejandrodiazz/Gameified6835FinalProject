@@ -8,6 +8,7 @@ import time
 import poseModule as pm
 import csv
 import math
+from multiprocessing import Process
 
 def parse_list_string(string):
 	# get strings like this
@@ -17,40 +18,26 @@ def parse_list_string(string):
 	ret = [string for string in ret]
 	return ret
 
-trainer_file = 'squats.csv'
-squats_rows = []
-squats_times = []
-with open(trainer_file) as csv_file:
-    csv_reader = csv.reader(csv_file)
-    squats_rows = list(csv_reader)
-    squats_rows.pop(0) # get rid of the header of the csv
-    # fix squats_times
-    squats_times = [int(float(row[0])) for row in squats_rows]
-    # fix squats_rows
-    new = []
-    for row in squats_rows:
-    	new_row = []
-    	for element in row:
-    		new_row.append(parse_list_string(element))	# parse str of list back to list
-    	new_row.pop(0)									# get rid of time
-    	new.append(new_row)							
-    squats_rows = new 									# update squats_rows
 
-current_milli_time = lambda: int(round(time.time() * 1000))
-# camera feed
-cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
-# video feed
-filename = 'videos/squats.MOV'
-cap_vid = cv2.VideoCapture(filename)
-# Get length of the video.
-fps = cap_vid.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
-frame_count = int(cap_vid.get(cv2.CAP_PROP_FRAME_COUNT))
-video_length = frame_count/fps * 1000 	# in milliseconds
-
-width 	= int(720/3)  
-height	= int(1280/3)
-start 	= current_milli_time()
-alpha 	= 0.1
+def get_data(trainer_file):
+	squats_rows = []
+	squats_times = []
+	with open(trainer_file) as csv_file:
+	    csv_reader = csv.reader(csv_file)
+	    squats_rows = list(csv_reader)
+	    squats_rows.pop(0) # get rid of the header of the csv
+	    # fix squats_times
+	    squats_times = [int(float(row[0])) for row in squats_rows]
+	    # fix squats_rows
+	    new = []
+	    for row in squats_rows:
+	    	new_row = []
+	    	for element in row:
+	    		new_row.append(parse_list_string(element))	# parse str of list back to list
+	    	new_row.pop(0)									# get rid of time
+	    	new.append(new_row)							
+	    squats_rows = new 									# update squats_rows
+	return 'squats',squats_times, squats_rows
 
 
 def angle3pt(a, b, c):
@@ -92,6 +79,25 @@ def calculate_accuracy(cv2, lmList, timestamp):
 		
 	return cv2, accuracy
 
+identifier, squats_times, squats_rows = get_data('squats.csv')
+current_milli_time = lambda: int(round(time.time() * 1000))
+
+# camera feed
+cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
+
+# video feed
+filename = 'videos/squats.MOV'
+cap_vid = cv2.VideoCapture(filename)
+# Get length of the video.
+fps = cap_vid.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
+frame_count = int(cap_vid.get(cv2.CAP_PROP_FRAME_COUNT))
+video_length = frame_count/fps * 1000 	# in milliseconds
+
+width 	= int(720/3)  
+height	= int(1280/3)
+start 	= current_milli_time()
+alpha 	= 0.1
+
 pTime = 0
 frame_counter = 0
 detector = pm.poseDetector()
@@ -99,22 +105,21 @@ while True:
 	# read from the camera
 	success, frame_cam = cap_cam.read()
 	time_passed = current_milli_time() - start # Capture the frame at the current time point
-	
-	# read from the video
-	ret = cap_vid.set(cv2.CAP_PROP_POS_MSEC, time_passed)
-	ret, frame_vid = cap_vid.read()
 	frame_cam = cv2.flip(frame_cam,1)
+
+	# read from the video
+	ret = cap_vid.set(cv2.CAP_PROP_POS_MSEC, time_passed) # set time frame
+	ret, frame_vid = cap_vid.read()
 	
 	# If the last frame is reached, reset the video
 	# print(time_passed, video_length)
 	if time_passed >= video_length:
 		# Reset to the first frame. Returns bool.
-		print("resetting video")
+		print("Resetting video")
 		_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
 		start = current_milli_time()
 		continue
 	
-
     # find the skeleton
 	frame_cam = detector.findPose(frame_cam)
 	lmList = detector.findPosition(frame_cam, draw=False)
@@ -132,7 +137,7 @@ while True:
 	frame_cam[60:60+width,800:800+height] = added_image
 	# For displaying current value of alpha(weights)
 	font = cv2.FONT_HERSHEY_SIMPLEX
-	display_string = 'frames:{} alpha:{} accuracy:{}'.format(int(fps), alpha, accuracy)
+	display_string = 'frames:{} alpha:{} accuracy:{}'.format(round(fps,1), alpha, accuracy)
 	cv2.putText(frame_cam,display_string,(20,40), font, 1.5,(0,255,0),4,cv2.LINE_AA)
 	cv2.imshow('a',frame_cam)
 
