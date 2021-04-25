@@ -6,7 +6,8 @@ import time
 import poseModule as pm
 import csv					# to save data
 
-cap = cv2.VideoCapture('videos/squats.MOV')
+csv_name = "pushups.csv"
+cap = cv2.VideoCapture('videos/pushups.MOV')
 # cap = cv2.VideoCapture(0) 	# this captures live video from your webcam
 pTime = 0
 detector = pm.poseDetector()
@@ -33,7 +34,7 @@ while True:
 
 	except: # reaches end of mp4 or mov file and saves trainer data
 
-		with open('squats.csv', mode='w+') as trainer_file:
+		with open('pushups.csv', mode='w+') as trainer_file:
 		    trainer_writer = csv.writer(trainer_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 		    frame_rate = 30
 		    seconds = 0

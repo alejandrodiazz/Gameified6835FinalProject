@@ -53,7 +53,7 @@ def get_data(trainer_file):
 	    	new_row.pop(0)									# get rid of time
 	    	new.append(new_row)							
 	    squats_rows = new 									# update squats_rows
-	return 'squats',squats_times, squats_rows
+	return 'exercise',squats_times, squats_rows
 
 
 def angle3pt(a, b, c):
@@ -64,28 +64,37 @@ def angle3pt(a, b, c):
     return ang + 360 if ang < 0 else ang
 
 
-def calculate_angle_accuracy(cv2, lmList, to_compare, timestamp):
+def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_times, timestamp):
 	accuracies = list()
 	rounding_factor = 2
 
 	for body_parts in to_compare:
-
 		i1 = index_of_body_part(body_parts[0])
 		i2 = index_of_body_part(body_parts[1])
 		i3 = index_of_body_part(body_parts[2])
-		print(len(lmList))
 		bodypart1 = [int(lmList[i1][1]), int(lmList[i1][2])]
 		bodypart2 = [int(lmList[i2][1]), int(lmList[i2][2])]
 		bodypart3 = [int(lmList[i3][1]), int(lmList[i3][2])] 
+
+		if bodypart1[1] > 1280 or bodypart2[1] > 1280 or bodypart3[1] > 1280:
+			accuracies.append(0)
+			print("OUT OF FRAME Y DIRECTION: ", body_parts)
+			continue
+
+		if bodypart1[0] > 720 or bodypart2[0] > 720 or bodypart3[0] > 720:
+			accuracies.append(0)
+			print("OUT OF FRAME X DIRECTION: ", body_parts)
+			continue
+
 		user_angle = round(angle3pt(bodypart1, bodypart2, bodypart3 ), rounding_factor)		# find angle of user
-		cv2.circle(frame_cam, (bodypart1[0], bodypart1[1]), 15, (0, 0, 255), cv2.FILLED)	# draw points of interest
-		cv2.circle(frame_cam, (bodypart2[0], bodypart2[1]), 15, (0, 0, 255), cv2.FILLED)
-		cv2.circle(frame_cam, (bodypart3[0], bodypart3[1]), 15, (0, 0, 255), cv2.FILLED)
+		img = cv2.circle(img, (bodypart1[0], bodypart1[1]), 15, (0, 0, 255), cv2.FILLED)	# draw points of interest
+		img = cv2.circle(img, (bodypart2[0], bodypart2[1]), 15, (0, 0, 255), cv2.FILLED)
+		img = cv2.circle(img, (bodypart3[0], bodypart3[1]), 15, (0, 0, 255), cv2.FILLED)
 		
-		closest_index = squats_times.index(min(squats_times, key=lambda x:abs(x-timestamp))) # get index of closest time
-		bodypart1_trainer = [int(squats_rows[closest_index][i1][1]), int(squats_rows[closest_index][i1][2])]
-		bodypart2_trainer = [int(squats_rows[closest_index][i2][1]), int(squats_rows[closest_index][i2][2])]
-		bodypart3_trainer = [int(squats_rows[closest_index][i3][1]), int(squats_rows[closest_index][i3][2])]
+		closest_index = trainer_times.index(min(trainer_times, key=lambda x:abs(x-timestamp))) # get index of closest time
+		bodypart1_trainer = [int(trainer_rows[closest_index][i1][1]), int(trainer_rows[closest_index][i1][2])]
+		bodypart2_trainer = [int(trainer_rows[closest_index][i2][1]), int(trainer_rows[closest_index][i2][2])]
+		bodypart3_trainer = [int(trainer_rows[closest_index][i3][1]), int(trainer_rows[closest_index][i3][2])]
 		trainer_angle = round(angle3pt(bodypart1_trainer, bodypart2_trainer, bodypart3_trainer), rounding_factor)
 
 		error = abs(user_angle - trainer_angle)
@@ -94,13 +103,13 @@ def calculate_angle_accuracy(cv2, lmList, to_compare, timestamp):
 		else:
 			accuracies.append(round((135 - error)/135, rounding_factor))
 		
-	print(user_angle, trainer_angle, accuracies)
+	print(accuracies)
 		
-	return round(sum(accuracies)/len(accuracies), rounding_factor)
+	return img, round(sum(accuracies)/len(accuracies), rounding_factor)
 
-def project_trainer_skeleton(img, csv_data, timestamp):
-	closest_index = squats_times.index(min(squats_times, key=lambda x:abs(x-timestamp))) # get index of closest time
-	for body_part in csv_data[closest_index]:
+def project_trainer_skeleton(img, trainer_rows, trainer_times, timestamp):
+	closest_index = trainer_times.index(min(trainer_times, key=lambda x:abs(x-timestamp))) # get index of closest time
+	for body_part in trainer_rows[closest_index]:
 		cx = int(body_part[1])
 		cy = int(body_part[2])
 		cv2.circle(img, (cx, cy), 8, (0, 0, 255), cv2.FILLED)
@@ -118,78 +127,89 @@ def project_trainer_skeleton(img, csv_data, timestamp):
 
 	return img
 
-identifier, squats_times, squats_rows = get_data('squats.csv')
-current_milli_time = lambda: int(round(time.time() * 1000))
+def run(csv, video_file, to_compare):
+	identifier, trainer_times, trainer_rows = get_data(csv)
+	current_milli_time = lambda: int(round(time.time() * 1000))
 
-# camera feed
-cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
+	# camera feed
+	cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
 
-# video feed
-# filename = 'videos/squats.MOV'
-filename = 'videos/squats500k.mp4'
-cap_vid = cv2.VideoCapture(filename)
-# Get length of the video.
-fps = cap_vid.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
-frame_count = int(cap_vid.get(cv2.CAP_PROP_FRAME_COUNT))
-video_length = frame_count/fps * 1000 	# in milliseconds
+	# video feed
+	cap_vid = cv2.VideoCapture(video_file)
+	# Get length of the video.
+	fps = cap_vid.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
+	frame_count = int(cap_vid.get(cv2.CAP_PROP_FRAME_COUNT))
+	video_length = frame_count/fps * 1000 	# in milliseconds
 
-width 	= int(720/3)  
-height	= int(1280/3)
-start 	= current_milli_time()
-alpha 	= 0.1
+	width 	= int(720/3)  
+	height	= int(1280/3)
+	start 	= current_milli_time()
+	alpha 	= 0.1
 
-pTime = 0
-frame_counter = 0
-detector = pm.poseDetector()
-while True:
-	# read from the camera
-	success, frame_cam = cap_cam.read()
-	time_passed = current_milli_time() - start # Capture the frame at the current time point
-	frame_cam = cv2.flip(frame_cam,1)
+	pTime = 0
+	frame_counter = 0
+	detector = pm.poseDetector()
+	while True:
+		# read from the camera
+		success, frame_cam = cap_cam.read()
+		time_passed = current_milli_time() - start # Capture the frame at the current time point
+		frame_cam = cv2.flip(frame_cam,1)
 
-	# read from the video
-	ret = cap_vid.set(cv2.CAP_PROP_POS_MSEC, time_passed) # set time frame
-	ret, frame_vid = cap_vid.read()
+		# read from the video
+		ret = cap_vid.set(cv2.CAP_PROP_POS_MSEC, time_passed) # set time frame
+		ret, frame_vid = cap_vid.read()
+		
+	    # find the skeleton
+		frame_cam = detector.findPose(frame_cam)
+		lmList = detector.findPosition(frame_cam, draw=False)
+		# print(lmList)
+		if len(lmList) == 0:
+			print("ERRRRORRRR: Length of list 0")
+			continue
+
+		frame_cam, accuracy = calculate_angle_accuracy(img = frame_cam, lmList = lmList, to_compare = to_compare, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
+		
+		cTime = time.time()
+		fps = 1/(cTime - pTime)
+		pTime = cTime
+
+		# ADD ON OTHER VIDEO
+		# If the last frame is reached, reset the video
+		if time_passed >= video_length:
+			print("Resetting video")
+			_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
+			start = current_milli_time()
+			break
+
+		frame_vid = project_trainer_skeleton(img = frame_vid, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
+		try:
+			frame_vid = cv2.resize(frame_vid, (height, width), interpolation = cv2.INTER_AREA)
+			added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
+		except cv2.error:
+			print("ERROR: could not create vid")
+			time.sleep(7)
+			continue
+
+		# Change the region with the result
+		frame_cam[60:60+width,800:800+height] = added_image
+		# For displaying current value of alpha(weights)
+		font = cv2.FONT_HERSHEY_SIMPLEX
+		display_string = 'frames:{} alpha:{} accuracy:{}'.format(round(fps,1), alpha, accuracy)
+		cv2.putText(frame_cam,display_string,(20,40), font, 1.5,(0,255,0),4,cv2.LINE_AA)
+		cv2.imshow('a',frame_cam)
+
+		cv2.waitKey(1)
+
+def main():
+	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
+	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 	
-    # find the skeleton
-	frame_cam = detector.findPose(frame_cam)
-	lmList = detector.findPosition(frame_cam, draw=False)
-	if len(lmList) == 0:
-		print("ERRRRORRRR: Length of list 0")
-		continue
+	while True:
+		run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats)
+		# run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups)
 
-	to_compare = [["right_hip", "right_knee", "right_ankle"]]
-	accuracy = calculate_angle_accuracy(cv2, lmList, to_compare, time_passed)
-	
-	cTime = time.time()
-	fps = 1/(cTime - pTime)
-	pTime = cTime
-
-	# ADD ON OTHER VIDEO
-	# If the last frame is reached, reset the video
-	if time_passed >= video_length:
-		print("Resetting video")
-		_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
-		start = current_milli_time()
-		continue
-	frame_vid = project_trainer_skeleton(frame_vid, squats_rows, time_passed)
-	try:
-		frame_vid = cv2.resize(frame_vid, (height, width), interpolation = cv2.INTER_AREA)
-		added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
-	except cv2.error:
-		print("ERROR: could not create frame_vid")
-		time.sleep(5)
-		continue
-
-	# Change the region with the result
-	frame_cam[60:60+width,800:800+height] = added_image
-	# For displaying current value of alpha(weights)
-	font = cv2.FONT_HERSHEY_SIMPLEX
-	display_string = 'frames:{} alpha:{} accuracy:{}'.format(round(fps,1), alpha, accuracy)
-	cv2.putText(frame_cam,display_string,(20,40), font, 1.5,(0,255,0),4,cv2.LINE_AA)
-	cv2.imshow('a',frame_cam)
-
-	cv2.waitKey(1)
+if __name__ == "__main__":
+	main()
 
 
 
