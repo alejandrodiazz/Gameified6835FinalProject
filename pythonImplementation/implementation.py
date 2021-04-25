@@ -10,6 +10,7 @@ import csv
 import math
 from multiprocessing import Process
 import mediapipe as mp
+
 def parse_list_string(string):
 	# get strings like this
 	string = string.replace("]", "")
@@ -17,6 +18,21 @@ def parse_list_string(string):
 	ret = string.split(",")
 	ret = [string for string in ret]
 	return ret
+
+
+def index_of_body_part(body_part):
+	body_parts_list = ["nose", "left_eye_inner", "left_eye", "left_eye_outer",
+		"right_eye_inner", "right_eye", "right_eye_outer","left_ear", "right_ear",
+		"mouth_left","mouth_right", "left_shoulder", "right_shoulder", "left_elbow",
+		"right_elbow", "left_wrist", "right_wrist", "left_pinky", "right_pinky", 
+		"left_index", "right_index", "left_thumb", "right_thumb","left_hip", 
+		"right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle", 
+		"left_heel", "right_heel", "left_foot_index", "right_foot_index"]
+	body_parts_dict = dict()
+	for i, part in enumerate(body_parts_list):
+		body_parts_dict[part] = i
+	# print(body_parts_dict)
+	return body_parts_dict[body_part]
 
 
 def get_data(trainer_file):
@@ -48,34 +64,39 @@ def angle3pt(a, b, c):
     return ang + 360 if ang < 0 else ang
 
 
-def calculate_accuracy(cv2, lmList, timestamp):
-	accuracy = 0
-	check_limbs = False
+def calculate_angle_accuracy(cv2, lmList, to_compare, timestamp):
+	accuracies = list()
 	rounding_factor = 2
-	
-	if len(lmList) > 28:
-		right_hip = [int(lmList[24][1]), int(lmList[24][2])]
-		right_knee = [int(lmList[26][1]), int(lmList[26][2])]
-		right_ankle = [int(lmList[28][1]), int(lmList[28][2])] 
-		user_angle = round(angle3pt(right_hip, right_knee, right_ankle ), rounding_factor)
-		cv2.circle(frame_cam, (right_hip[0], right_hip[1]), 15, (0, 0, 255), cv2.FILLED)
-		cv2.circle(frame_cam, (right_knee[0], right_knee[1]), 15, (0, 0, 255), cv2.FILLED)
-		cv2.circle(frame_cam, (right_ankle[0], right_ankle[1]), 15, (0, 0, 255), cv2.FILLED)
+
+	for body_parts in to_compare:
+
+		i1 = index_of_body_part(body_parts[0])
+		i2 = index_of_body_part(body_parts[1])
+		i3 = index_of_body_part(body_parts[2])
+		print(len(lmList))
+		bodypart1 = [int(lmList[i1][1]), int(lmList[i1][2])]
+		bodypart2 = [int(lmList[i2][1]), int(lmList[i2][2])]
+		bodypart3 = [int(lmList[i3][1]), int(lmList[i3][2])] 
+		user_angle = round(angle3pt(bodypart1, bodypart2, bodypart3 ), rounding_factor)		# find angle of user
+		cv2.circle(frame_cam, (bodypart1[0], bodypart1[1]), 15, (0, 0, 255), cv2.FILLED)	# draw points of interest
+		cv2.circle(frame_cam, (bodypart2[0], bodypart2[1]), 15, (0, 0, 255), cv2.FILLED)
+		cv2.circle(frame_cam, (bodypart3[0], bodypart3[1]), 15, (0, 0, 255), cv2.FILLED)
 		
 		closest_index = squats_times.index(min(squats_times, key=lambda x:abs(x-timestamp))) # get index of closest time
-		right_hip_trainer = [int(squats_rows[closest_index][24][1]), int(squats_rows[closest_index][24][2])]
-		right_knee_trainer = [int(squats_rows[closest_index][26][1]), int(squats_rows[closest_index][26][2])]
-		right_ankle_trainer = [int(squats_rows[closest_index][28][1]), int(squats_rows[closest_index][28][2])]
-		trainer_angle = round(angle3pt(right_hip_trainer, right_knee_trainer, right_ankle_trainer), rounding_factor)
+		bodypart1_trainer = [int(squats_rows[closest_index][i1][1]), int(squats_rows[closest_index][i1][2])]
+		bodypart2_trainer = [int(squats_rows[closest_index][i2][1]), int(squats_rows[closest_index][i2][2])]
+		bodypart3_trainer = [int(squats_rows[closest_index][i3][1]), int(squats_rows[closest_index][i3][2])]
+		trainer_angle = round(angle3pt(bodypart1_trainer, bodypart2_trainer, bodypart3_trainer), rounding_factor)
 
 		error = abs(user_angle - trainer_angle)
 		if error > 135:
-			accuracy = 0
+			accuracies.append(0)
 		else:
-			accuracy = round((135 - error)/135, rounding_factor)
-		print(user_angle, trainer_angle, accuracy)
+			accuracies.append(round((135 - error)/135, rounding_factor))
 		
-	return accuracy
+	print(user_angle, trainer_angle, accuracies)
+		
+	return round(sum(accuracies)/len(accuracies), rounding_factor)
 
 def project_trainer_skeleton(img, csv_data, timestamp):
 	closest_index = squats_times.index(min(squats_times, key=lambda x:abs(x-timestamp))) # get index of closest time
@@ -130,28 +151,36 @@ while True:
 	ret = cap_vid.set(cv2.CAP_PROP_POS_MSEC, time_passed) # set time frame
 	ret, frame_vid = cap_vid.read()
 	
+    # find the skeleton
+	frame_cam = detector.findPose(frame_cam)
+	lmList = detector.findPosition(frame_cam, draw=False)
+	if len(lmList) == 0:
+		print("ERRRRORRRR: Length of list 0")
+		continue
+
+	to_compare = [["right_hip", "right_knee", "right_ankle"]]
+	accuracy = calculate_angle_accuracy(cv2, lmList, to_compare, time_passed)
+	
+	cTime = time.time()
+	fps = 1/(cTime - pTime)
+	pTime = cTime
+
+	# ADD ON OTHER VIDEO
 	# If the last frame is reached, reset the video
 	if time_passed >= video_length:
 		print("Resetting video")
 		_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 		start = current_milli_time()
 		continue
-	
-    # find the skeleton
-	frame_cam = detector.findPose(frame_cam)
-	lmList = detector.findPosition(frame_cam, draw=False)
-
-	accuracy = calculate_accuracy(cv2, lmList, time_passed)
-	
-	cTime = time.time()
-	fps = 1/(cTime - pTime)
-	pTime = cTime
-
-	# add on other video
 	frame_vid = project_trainer_skeleton(frame_vid, squats_rows, time_passed)
-	frame_vid = cv2.resize(frame_vid, (height, width), interpolation = cv2.INTER_AREA)
-	added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
-	
+	try:
+		frame_vid = cv2.resize(frame_vid, (height, width), interpolation = cv2.INTER_AREA)
+		added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
+	except cv2.error:
+		print("ERROR: could not create frame_vid")
+		time.sleep(5)
+		continue
+
 	# Change the region with the result
 	frame_cam[60:60+width,800:800+height] = added_image
 	# For displaying current value of alpha(weights)
