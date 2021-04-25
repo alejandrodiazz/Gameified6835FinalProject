@@ -9,7 +9,7 @@ import poseModule as pm
 import csv
 import math
 from multiprocessing import Process
-
+import mediapipe as mp
 def parse_list_string(string):
 	# get strings like this
 	string = string.replace("]", "")
@@ -67,8 +67,6 @@ def calculate_accuracy(cv2, lmList, timestamp):
 		right_knee_trainer = [int(squats_rows[closest_index][26][1]), int(squats_rows[closest_index][26][2])]
 		right_ankle_trainer = [int(squats_rows[closest_index][28][1]), int(squats_rows[closest_index][28][2])]
 		trainer_angle = round(angle3pt(right_hip_trainer, right_knee_trainer, right_ankle_trainer), rounding_factor)
-		# print(closest_index, right_hip_trainer, right_knee_trainer, right_ankle_trainer)
-		# print(squats_rows[closest_index])
 
 		error = abs(user_angle - trainer_angle)
 		if error > 135:
@@ -77,7 +75,27 @@ def calculate_accuracy(cv2, lmList, timestamp):
 			accuracy = round((135 - error)/135, rounding_factor)
 		print(user_angle, trainer_angle, accuracy)
 		
-	return cv2, accuracy
+	return accuracy
+
+def project_trainer_skeleton(img, csv_data, timestamp):
+	closest_index = squats_times.index(min(squats_times, key=lambda x:abs(x-timestamp))) # get index of closest time
+	for body_part in csv_data[closest_index]:
+		cx = int(body_part[1])
+		cy = int(body_part[2])
+		cv2.circle(img, (cx, cy), 8, (0, 0, 255), cv2.FILLED)
+
+	####### THIS DRAWS CONNECTING LINES BUT TAKES TOO LONG ######
+	# mpDraw = mp.solutions.drawing_utils
+	# imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+	# mpPose = mp.solutions.pose
+	# pose = mpPose.Pose(False, False, True, 0.5, 0.5)
+	# results = pose.process(imgRGB)
+	# print(results.pose_landmarks)
+	# if results.pose_landmarks:
+	# 	mpDraw.draw_landmarks(img, results.pose_landmarks, mpPose.POSE_CONNECTIONS)
+	#############################################################
+
+	return img
 
 identifier, squats_times, squats_rows = get_data('squats.csv')
 current_milli_time = lambda: int(round(time.time() * 1000))
@@ -86,7 +104,8 @@ current_milli_time = lambda: int(round(time.time() * 1000))
 cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
 
 # video feed
-filename = 'videos/squats.MOV'
+# filename = 'videos/squats.MOV'
+filename = 'videos/squats500k.mp4'
 cap_vid = cv2.VideoCapture(filename)
 # Get length of the video.
 fps = cap_vid.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
@@ -112,11 +131,9 @@ while True:
 	ret, frame_vid = cap_vid.read()
 	
 	# If the last frame is reached, reset the video
-	# print(time_passed, video_length)
 	if time_passed >= video_length:
-		# Reset to the first frame. Returns bool.
 		print("Resetting video")
-		_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
+		_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 		start = current_milli_time()
 		continue
 	
@@ -124,15 +141,17 @@ while True:
 	frame_cam = detector.findPose(frame_cam)
 	lmList = detector.findPosition(frame_cam, draw=False)
 
-	cv2, accuracy = calculate_accuracy(cv2, lmList, time_passed)
+	accuracy = calculate_accuracy(cv2, lmList, time_passed)
 	
 	cTime = time.time()
 	fps = 1/(cTime - pTime)
 	pTime = cTime
 
 	# add on other video
+	frame_vid = project_trainer_skeleton(frame_vid, squats_rows, time_passed)
 	frame_vid = cv2.resize(frame_vid, (height, width), interpolation = cv2.INTER_AREA)
 	added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
+	
 	# Change the region with the result
 	frame_cam[60:60+width,800:800+height] = added_image
 	# For displaying current value of alpha(weights)

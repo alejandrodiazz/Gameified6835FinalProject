@@ -19,7 +19,7 @@ class poseDetector():
 		self.mpDraw = mp.solutions.drawing_utils
 		self.mpPose = mp.solutions.pose
 		self.pose = self.mpPose.Pose(self.mode, self.upperBody, self.smooth, self.detectionConfidence, self.trackConfidence)
-
+		print(self.pose)
 
 	def findPose(self, img, draw=True):
 
