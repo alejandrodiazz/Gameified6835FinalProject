@@ -127,7 +127,7 @@ def project_trainer_skeleton(img, trainer_rows, trainer_times, timestamp):
 
 	return img
 
-def run(csv, video_file, to_compare):
+def run(csv, video_file, to_compare, exercise):
 	identifier, trainer_times, trainer_rows = get_data(csv)
 	current_milli_time = lambda: int(round(time.time() * 1000))
 
@@ -140,15 +140,30 @@ def run(csv, video_file, to_compare):
 	fps = cap_vid.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
 	frame_count = int(cap_vid.get(cv2.CAP_PROP_FRAME_COUNT))
 	video_length = frame_count/fps * 1000 	# in milliseconds
+	font = cv2.FONT_HERSHEY_SIMPLEX
 
 	width 	= int(720/3)  
 	height	= int(1280/3)
 	start 	= current_milli_time()
 	alpha 	= 0.1
+	score = 0
 
 	pTime = 0
 	frame_counter = 0
 	detector = pm.poseDetector()
+
+
+	while current_milli_time() - start < 6000:
+		success, frame_cam = cap_cam.read()
+		frame_cam = cv2.flip(frame_cam,1)
+		time_left = 6-int(round((current_milli_time() - start)/1000, 0))
+		display_string = 'Ready? ' + exercise + ' starting in:{} seconds'.format(time_left)
+		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
+		cv2.imshow('a',frame_cam)
+		cv2.waitKey(1)
+
+
+	start 	= current_milli_time()
 	while True:
 		# read from the camera
 		success, frame_cam = cap_cam.read()
@@ -168,7 +183,8 @@ def run(csv, video_file, to_compare):
 			continue
 
 		frame_cam, accuracy = calculate_angle_accuracy(img = frame_cam, lmList = lmList, to_compare = to_compare, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
-		
+		score += accuracy
+
 		cTime = time.time()
 		fps = 1/(cTime - pTime)
 		pTime = cTime
@@ -176,10 +192,15 @@ def run(csv, video_file, to_compare):
 		# ADD ON OTHER VIDEO
 		# If the last frame is reached, reset the video
 		if time_passed >= video_length:
-			print("Resetting video")
+			print("Video Done")
 			_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 			start = current_milli_time()
-			break
+			display_string = 'Good Job! SCORE:{} '.format(score)
+			cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
+			cv2.imshow('a',frame_cam)
+			cv2.waitKey(1)
+			time.sleep(7)
+			return
 
 		frame_vid = project_trainer_skeleton(img = frame_vid, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
 		try:
@@ -187,26 +208,27 @@ def run(csv, video_file, to_compare):
 			added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
 		except cv2.error:
 			print("ERROR: could not create vid")
-			time.sleep(7)
+			time.sleep(2)
 			continue
 
 		# Change the region with the result
 		frame_cam[60:60+width,800:800+height] = added_image
 		# For displaying current value of alpha(weights)
-		font = cv2.FONT_HERSHEY_SIMPLEX
-		display_string = 'frames:{} alpha:{} accuracy:{}'.format(round(fps,1), alpha, accuracy)
-		cv2.putText(frame_cam,display_string,(20,40), font, 1.5,(0,255,0),4,cv2.LINE_AA)
+		display_string = 'Frames:{} Accuracy:{}'.format(round(fps,1),accuracy)
+		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),5,cv2.LINE_AA)
 		cv2.imshow('a',frame_cam)
 
 		cv2.waitKey(1)
+
 
 def main():
 	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 	
 	while True:
-		run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats)
-		# run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups)
+		run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats")
+		
+		# run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups")
 
 if __name__ == "__main__":
 	main()
