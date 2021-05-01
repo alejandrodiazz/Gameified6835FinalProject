@@ -11,6 +11,14 @@ import math
 from multiprocessing import Process
 import mediapipe as mp
 
+# This module is imported so that we can 
+# play the converted audio
+import os
+
+def play_audio(file):
+	prefix = "audio/"
+	os.system("mpg321 "+ prefix + file)
+
 def parse_list_string(string):
 	# get strings like this
 	string = string.replace("]", "")
@@ -225,6 +233,7 @@ def main():
 	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 	
+	play_audio("welcome.mp3")
 	while True:
 		run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats")
 		
