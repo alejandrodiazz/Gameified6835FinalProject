@@ -138,7 +138,7 @@ def project_trainer_skeleton(img, trainer_rows, trainer_times, timestamp):
 
 	return img
 
-def run(csv, video_file, to_compare, exercise):
+def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	identifier, trainer_times, trainer_rows = get_data(csv)
 	current_milli_time = lambda: int(round(time.time() * 1000))
 
@@ -178,7 +178,7 @@ def run(csv, video_file, to_compare, exercise):
 	while True:
 		# read from the camera
 		success, frame_cam = cap_cam.read()
-		time_passed = current_milli_time() - start # Capture the frame at the current time point
+		time_passed = int((current_milli_time() - start) * speed_factor) # Capture the frame at the current time point
 		frame_cam = cv2.flip(frame_cam,1)
 
 		# read from the video
@@ -227,27 +227,19 @@ def run(csv, video_file, to_compare, exercise):
 		# For displaying current value of alpha(weights)
 		display_string = 'Frames:{} Accuracy:{}'.format(round(fps,1),accuracy)
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),5,cv2.LINE_AA)
-		cv2.imshow('a',frame_cam)
+		cv2.imshow('Gameified',frame_cam)
 
 		cv2.waitKey(1)
 
-def run_menu():
-	play_audio("welcome.mp3")
+def run_menu(options):
 	current_milli_time = lambda: int(round(time.time() * 1000))
 
 	# camera feed
 	cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
-
-	# Get length of the video.
-	# fps = cap_cam.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
-	# frame_count = int(cap_cam.get(cv2.CAP_PROP_FRAME_COUNT))
-	# video_length = frame_count/fps * 1000 	# in milliseconds
 	font = cv2.FONT_HERSHEY_SIMPLEX
-
 	start 	= current_milli_time()
 	alpha 	= 0.1
 	score = 0
-
 	pTime = 0
 	frame_counter = 0
 	detector = pm.poseDetector()
@@ -304,23 +296,24 @@ def run_menu():
 		# first option
 		cv2.rectangle(frame_cam, option0_start, option0_end, (0,255,0), -1)
 		point = (option0_start[0], option0_end[1])
-		cv2.putText(frame_cam,"Squats",point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+		cv2.putText(frame_cam,options[0],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
 		# second option
 		cv2.rectangle(frame_cam, option1_start, option1_end, (0,0,255), -1)
 		point = (option1_start[0], option1_end[1])
-		cv2.putText(frame_cam,"Pushups",point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+		cv2.putText(frame_cam,options[1],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
 
 		# third option
 		cv2.rectangle(frame_cam, option2_start, option2_end, (100,0,100), -1)
 		point = (option2_start[0], option2_end[1])
-		cv2.putText(frame_cam,"All",point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+		cv2.putText(frame_cam,options[2],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
 
 
 		cv2.circle(frame_cam, hand, 10, (0,255, 40), -1) # display hand point
 		display_string = 'Main Menu Frames:{}'.format(int(fps))
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
-		cv2.imshow('a',frame_cam)
+		cv2.imshow('Gameified Main Menu',frame_cam)
 		cv2.waitKey(1)
+
 
 def check_box(box_timer, in_box): # return what the timer for each box should be
 	if in_box:
@@ -328,19 +321,31 @@ def check_box(box_timer, in_box): # return what the timer for each box should be
 	else:
 		return 0
 
+
 def main():
 	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 	
 	while True:
-		option = run_menu()
-		if option == 0:
-			run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats")
-		elif option == 1:
-			run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups")
-		elif option ==2:
-			run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats")
-			run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups")
+		play_audio("welcome.mp3")
+		option = run_menu(options = ["Squats", "Pushups", "All"])
+		speed_factor = run_menu(options = ["Slow", "Normal", "Fast"])
+		if speed_factor == 0:	# slow
+			speed_factor = .4
+		elif speed_factor == 1: # normal
+			pass
+		elif speed_factor == 2: # fast
+			speed_factor ==1.5
+
+		if option == 0: 	# squats
+			run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+		elif option == 1:	# pushups
+			run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+		elif option == 2:	# alls
+			run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+			run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+
+
 if __name__ == "__main__":
 	main()
 
