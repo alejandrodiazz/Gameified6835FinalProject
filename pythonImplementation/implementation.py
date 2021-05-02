@@ -15,6 +15,9 @@ import mediapipe as mp
 # play the converted audio
 import os
 
+screen_width = 1280
+screen_height = 720
+
 def play_audio(file):
 	prefix = "audio/"
 	os.system("mpg321 "+ prefix + file)
@@ -203,7 +206,7 @@ def run(csv, video_file, to_compare, exercise):
 			print("Video Done")
 			_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 			start = current_milli_time()
-			display_string = 'Good Job! SCORE:{} '.format(score)
+			display_string = 'Good Job! SCORE:{} '.format(int(score))
 			cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
 			cv2.imshow('a',frame_cam)
 			cv2.waitKey(1)
@@ -228,17 +231,116 @@ def run(csv, video_file, to_compare, exercise):
 
 		cv2.waitKey(1)
 
+def run_menu():
+	play_audio("welcome.mp3")
+	current_milli_time = lambda: int(round(time.time() * 1000))
+
+	# camera feed
+	cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
+
+	# Get length of the video.
+	# fps = cap_cam.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
+	# frame_count = int(cap_cam.get(cv2.CAP_PROP_FRAME_COUNT))
+	# video_length = frame_count/fps * 1000 	# in milliseconds
+	font = cv2.FONT_HERSHEY_SIMPLEX
+
+	start 	= current_milli_time()
+	alpha 	= 0.1
+	score = 0
+
+	pTime = 0
+	frame_counter = 0
+	detector = pm.poseDetector()
+
+	timers = [0, 0, 0]
+
+	while True:
+		success, frame_cam = cap_cam.read()
+		frame_cam = cv2.flip(frame_cam,1)
+		time_left = 6-int(round((current_milli_time() - start)/1000, 0))
+		# find the skeleton
+		frame_cam = detector.findPose(frame_cam)
+		lmList = detector.findPosition(frame_cam, draw=False)
+		if len(lmList) == 0:	# check for an error
+			print("ERRRRORRRR: Length of list 0")
+			continue
+
+		cTime = time.time()
+		fps = 1/(cTime - pTime)
+		pTime = cTime
+
+		option0_start = (int(screen_width*(2/3)), int(screen_height*(1/10)))
+		option0_end = (int(screen_width*(5/6)), int(screen_height*(2.5/10)))
+		option1_start = (int(screen_width*(2/3)), int(screen_height*(3/10)))
+		option1_end = (int(screen_width*(5/6)), int(screen_height*(4.5/10)))
+		option2_start = (int(screen_width*(2/3)), int(screen_height*(5/10)))
+		option2_end = (int(screen_width*(5/6)), int(screen_height*(6.5/10)))
+
+		i = index_of_body_part("left_thumb")
+		hand = (int(lmList[i][1]), int(lmList[i][2]))
+		x0 = hand[0]>option0_start[0] and hand[0]<option0_end[0]
+		y0 = hand[1]>option0_start[1] and hand[1]<option0_end[1]
+		in_box0 = x0 and y0
+
+		x1 = hand[0]>option1_start[0] and hand[0]<option1_end[0]
+		y1 = hand[1]>option1_start[1] and hand[1]<option1_end[1]
+		in_box1 = x1 and y1
+
+		x2 = hand[0]>option2_start[0] and hand[0]<option2_end[0]
+		y2 = hand[1]>option2_start[1] and hand[1]<option2_end[1]
+		in_box2 = x2 and y2
+
+		boxes = [in_box0,in_box1,in_box2]
+
+		new = list()
+		for index, timer in enumerate(timers):	# take care of incrementing timers
+			timer = check_box(timer, boxes[index])
+			new.append(timer)
+			if timer > 20:
+				return index
+		timers = new
+
+		menu_font_size = 1.5
+		# first option
+		cv2.rectangle(frame_cam, option0_start, option0_end, (0,255,0), -1)
+		point = (option0_start[0], option0_end[1])
+		cv2.putText(frame_cam,"Squats",point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+		# second option
+		cv2.rectangle(frame_cam, option1_start, option1_end, (0,0,255), -1)
+		point = (option1_start[0], option1_end[1])
+		cv2.putText(frame_cam,"Pushups",point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+
+		# third option
+		cv2.rectangle(frame_cam, option2_start, option2_end, (100,0,100), -1)
+		point = (option2_start[0], option2_end[1])
+		cv2.putText(frame_cam,"All",point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+
+
+		cv2.circle(frame_cam, hand, 10, (0,255, 40), -1) # display hand point
+		display_string = 'Main Menu Frames:{}'.format(int(fps))
+		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
+		cv2.imshow('a',frame_cam)
+		cv2.waitKey(1)
+
+def check_box(box_timer, in_box): # return what the timer for each box should be
+	if in_box:
+		return box_timer + 1
+	else:
+		return 0
 
 def main():
 	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 	
-	play_audio("welcome.mp3")
 	while True:
-		run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats")
-		
-		# run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups")
-
+		option = run_menu()
+		if option == 0:
+			run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats")
+		elif option == 1:
+			run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups")
+		elif option ==2:
+			run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats")
+			run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups")
 if __name__ == "__main__":
 	main()
 
