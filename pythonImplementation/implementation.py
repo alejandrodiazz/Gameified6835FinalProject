@@ -79,6 +79,7 @@ def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_time
 	incorrect_body_parts = list()
 	max_error = 0
 	incorrect_body_parts = to_compare[0]
+	error_floor = 70
 	for body_parts in to_compare:
 		i1 = index_of_body_part(body_parts[0])
 		i2 = index_of_body_part(body_parts[1])
@@ -109,15 +110,16 @@ def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_time
 		trainer_angle = round(angle3pt(bodypart1_trainer, bodypart2_trainer, bodypart3_trainer), rounding_factor)
 
 		error = abs(user_angle - trainer_angle)
-		if error > 50 and error > max_error:
+		if error > 30 and error > max_error:
 			max_error = error
 			incorrect_body_parts = body_parts
-		if error > 135:
+		if error > error_floor:
 			accuracies.append(0)
 		else:
-			accuracies.append(round((135 - error)/135, rounding_factor))
+			accuracies.append(round((error_floor - error)/error_floor, rounding_factor))
+		print(str(body_parts) + " " +str(user_angle) +" " +str(trainer_angle))
 		
-	print(accuracies)
+	# print(accuracies)
 		
 	return img, round(sum(accuracies)/len(accuracies), rounding_factor), incorrect_body_parts
 
@@ -141,9 +143,20 @@ def project_trainer_skeleton(img, trainer_rows, trainer_times, timestamp):
 
 	return img
 
+
 def truncate(n, decimals=0):
     multiplier = 10 ** decimals
     return int(n * multiplier) / multiplier
+
+
+def run_waiting_screen(exercise, cap_cam, time_left, font):
+	success, frame_cam = cap_cam.read()
+	frame_cam = cv2.flip(frame_cam,1)
+	display_string = 'Ready? ' + exercise + ' starting in:{} seconds'.format(time_left)
+	cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
+	cv2.imshow('Gameified',frame_cam)
+	cv2.waitKey(1)
+
 
 def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	identifier, trainer_times, trainer_rows = get_data(csv)
@@ -151,7 +164,6 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 
 	# camera feed
 	cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
-
 	# video feed
 	cap_vid = cv2.VideoCapture(video_file)
 	# Get length of the video.
@@ -168,7 +180,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	score = 0
 	prev_score = 0
 	accuracies_per_rep = 0
-	mid_rep = False
+	mid_rep = None
 	total_score = 0
 	num_good_reps = 0
 	good_rep = False
@@ -178,16 +190,9 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	frame_counter = 0
 	detector = pm.poseDetector()
 
-
 	while current_milli_time() - start < 6000: 
-		success, frame_cam = cap_cam.read()
-		frame_cam = cv2.flip(frame_cam,1)
 		time_left = 6-int(round((current_milli_time() - start)/1000, 0))
-		display_string = 'Ready? ' + exercise + ' starting in:{} seconds'.format(time_left)
-		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
-		cv2.imshow('Gameified',frame_cam)
-		cv2.waitKey(1)
-
+		run_waiting_screen(exercise, cap_cam, time_left, font)
 
 	start 	= current_milli_time()
 	count = 0 # number of exercises done so far
@@ -195,8 +200,8 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# read from the camera
 		success, frame_cam = cap_cam.read()
 		time_passed = int((current_milli_time() - start) * speed_factor) # Capture the frame at the current time point
-		new_exercise_start = int(start) + int((count*single_exercise_length))
-		new_exercise_stop = int(start) + int(((count+1)*single_exercise_length)) 
+		new_exercise_start = int(start) + int(((count+1)*single_exercise_length))
+		new_exercise_stop = int(start) + int(((count+2)*single_exercise_length)) 
 		# checking if an exercise has been completed
 		# print('time passed', time_passed, "new ex start", new_exercise_start, "new ex stop", new_exercise_stop)
 		# print("time passed +start ", time_passed+start, "new_ex start", new_exercise_start)
@@ -207,8 +212,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			# we are going faster through the video, (or slower), so we see less or more of the vid, respectively
 			# this means we just increment twice as slow or twice as fast. 
 		else: # most of the time
-			print("during rep")
-			mid_rep = True
+			mid_rep = True # print("during rep")
 		frame_cam = cv2.flip(frame_cam,1)
 
 		# read from the video
@@ -224,20 +228,20 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			continue
 		# accuracy for a single rep
 		frame_cam, accuracy, incorrect_angle = calculate_angle_accuracy(img = frame_cam, lmList = lmList, to_compare = to_compare, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
-		if accuracy > .91:
-			print("good rep")
+		if accuracy > .90:
+			# print("good rep")
 			good_rep = True
 			
-		print('score', score, 'accuracy', accuracy)
+		# print('score', score, 'accuracy', accuracy)
 		# print("new ex start stop", new_exercise_start, 'stop', new_exercise_stop)
 		if mid_rep: # this should happen a bunch
 			# we are mid rep
-			print('mid rep')
+			# print('mid rep')
 			accuracies_per_rep += 1
 			prev_score += accuracy
 		else: # should happen once every rep
 			# playsound.playsound('audio/fail.mp3', False) # CAN BE USED TO PLAY MP3
-			print('once every rep', accuracies_per_rep)
+			# print('once every rep', accuracies_per_rep)
 			prev_score /= (accuracies_per_rep+0.0001)
 			score = prev_score
 			list_accuracies.append(score)
@@ -259,7 +263,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		if time_passed >= video_length:
 			count = 0
 			print("Video Done")
-			# _ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
+			_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 			start = current_milli_time()
 			display_string = 'Good Job! SCORE:{} '.format(truncate(total_score/10,3))
 			cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
@@ -480,10 +484,10 @@ def update_dict(exercise, scores_dict, new_stats):
 
 def main():
 	global audio
-	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
+	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
-	to_compare_jumps = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
-	to_compare_lunges = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
+	to_compare_jumps = [["right_hip", "left_ankle", "right_ankle"], ["right_wrist","right_shoulder", "right_hip"]]
+	# to_compare_lunges = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_birddogs = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 
 	# number of reps completed, number of possible reps attainable, avg accuracy for completed reps
