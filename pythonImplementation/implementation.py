@@ -257,7 +257,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
 		except cv2.error:
 			print("ERROR: could not create vid")
-			time.sleep(2)
+			time.sleep(.5)
 			continue
 
 		# Change the region with the result
@@ -418,12 +418,12 @@ def run_menu(options, choose_exercises, scores, first_time = False):
 			cv2.putText(frame_cam,"Stats",(20, 170), font, 2.4,(0,255,0),6,cv2.LINE_AA)
 			display_string = ""
 			if key in calories_dict:
-				display_string = key + ": " + str(scores[key][0]) + "reps, " 
+				display_string = key + ": " + str(scores[key][0]) + " reps, " 
 				display_string += str(scores[key][1]) + " acc, " 
 				display_string += str(truncate(scores[key][0] * calories_dict[key], 2))+ " calories"
 			else:
-				display_string = key + ": " + str(scores[key][0]) + "reps, " + str(scores[key][1]) + "acc, " + str(truncate(scores[key][0]*.4, 2))+ " calories"
-			cv2.putText(frame_cam,display_string,(20,y_location), font, 1.2,(0,255,0),3,cv2.LINE_AA)
+				display_string = key + ": " + str(scores[key][0]) + " reps, " + str(scores[key][1]) + "acc, " + str(truncate(scores[key][0]*.4, 2))+ " calories"
+			cv2.putText(frame_cam,display_string,(20,y_location), font, 1.2,(0,255,0),4,cv2.LINE_AA)
 			y_location += 60
 
 		cv2.circle(frame_cam, hand, 10, (0,255, 40), -1) # display hand point
@@ -451,9 +451,9 @@ def main():
 	to_compare_lunges = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_birddogs = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 
-	scores_dict = {'squats':(40, .90), 'pushups': (50, .99)}
+	scores_dict = {'Squats':(40, .90), 'Pushups': (50, .99)}
 
-	premila = False
+	premila = True
 	while True:
 		option = run_menu(options = ["Squats", "Pushups", "All", "Jumping Jacks", "BirdDogs"], choose_exercises=True, scores = scores_dict, first_time = True)
 		speed_factor = run_menu(options = ["Slow", "Normal", "Fast"], choose_exercises=False, scores = dict())
@@ -473,16 +473,16 @@ def main():
 				scores_dict['pushups'] = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
 		else:
 			if option == 0: 	# squats
-				run(csv = 'premila_squats.csv', video_file= 'videos/premila_squats2.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
 			elif option == 1:	# pushups
 				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
 			elif option == 2:	# alls
-				run(csv = 'premila_squats.csv', video_file= 'videos/premila_squats2.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
 				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
 			elif option == 3:	# pushups
-				run(csv = 'premila_jumps.csv', video_file= 'videos/premila_jumps.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
+				run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
 			elif option == 4:	# pushups
-				run(csv = 'premila_birddogs.csv', video_file= 'videos/premila_birddogs.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
+				run(csv = 'premila_birddogs.csv', video_file= 'videos/premilabirddogs200k.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
 			
 
 if __name__ == "__main__":
