@@ -226,6 +226,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		if accuracy > .91:
 			print("good rep")
 			good_rep = True
+			
 		print('score', score, 'accuracy', accuracy)
 		# print("new ex start stop", new_exercise_start, 'stop', new_exercise_stop)
 		if mid_rep: # this should happen a bunch
@@ -243,6 +244,8 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			accuracies_per_rep = 0
 			if good_rep:
 				num_good_reps += 1
+			else:
+				playsound.playsound('audio/fail.mp3', False)
 
 		cTime = time.time()
 		fps = 1/(cTime - pTime)
@@ -285,7 +288,8 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		cv2.putText(frame_cam,display_string3,(20,150), font, 1,(0,255,0),2,cv2.LINE_AA)
 		if good_rep:
 			display_string3 = 'Good rep!!'
-			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(100,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
+			playsound.playsound('audio/goodrep.mp3', False)
 			good_rep = False
 		cv2.waitKey(1)
 
@@ -495,11 +499,11 @@ def main():
 				scores_dict['pushups'] = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
 		else:
 			if option == 0: 	# squats
-				run(csv = 'premila_squats.csv', video_file= 'videos/premila_squats2.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				run(csv = 'premila_squats.csv', video_file= 'videos/premila_squats.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
 			elif option == 1:	# pushups
 				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
 			elif option == 2:	# alls
-				run(csv = 'premila_squats.csv', video_file= 'videos/premila_squats2.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				run(csv = 'premila_squats.csv', video_file= 'videos/premila_squats.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
 				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
 			elif option == 3:	# pushups
 				run(csv = 'premila_jumps.csv', video_file= 'videos/premila_jumps.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)

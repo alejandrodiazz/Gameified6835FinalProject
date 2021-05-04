@@ -24,6 +24,6 @@ def convert_dict_to_files(prefix, text_dict):
 	  	os.system("mpg321 "+ filename)
 
 # The text that you want to convert to audio
-text_to_convert = {"welcome.mp3": "Welcome to Gameified!", "fail.mp3": "Fail.", "goodjob.mp3":"Good Job!"}
+text_to_convert = {"welcome.mp3": "Welcome to Gameified!", "fail.mp3": "Fail.", "goodjob.mp3":"Good Job!", "goodrep.mp3":"Good Rep!"}
 
 convert_dict_to_files("audio/", text_to_convert)
