@@ -10,6 +10,7 @@ import csv
 import math
 from multiprocessing import Process
 import mediapipe as mp
+import playsound
 
 # This module is imported so that we can 
 # play the converted audio
@@ -18,9 +19,6 @@ import os
 screen_width = 1280
 screen_height = 720
 
-def play_audio(file):
-	prefix = "audio/"
-	os.system("mpg321 "+ prefix + file)
 
 def parse_list_string(string):
 	# get strings like this
@@ -226,6 +224,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			accuracies_per_rep += 1
 			prev_score += accuracy
 		else: # should happen once every rep
+			# playsound.playsound('audio/fail.mp3', False) # CAN BE USED TO PLAY MP3
 			print('once every rep', accuracies_per_rep)
 			prev_score /= (accuracies_per_rep+0.0001)
 			score = prev_score
@@ -272,8 +271,9 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 
 		cv2.waitKey(1)
 
-def run_menu(options, choose_exercises, scores):
+def run_menu(options, choose_exercises, scores, first_time = False):
 	current_milli_time = lambda: int(round(time.time() * 1000))
+
 
 	# camera feed
 	cap_cam = cv2.VideoCapture(0) 	# this captures live video from your webcam
@@ -431,6 +431,9 @@ def run_menu(options, choose_exercises, scores):
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
 		cv2.imshow('Gameified',frame_cam)
 		cv2.waitKey(1)
+		if first_time == True:
+			playsound.playsound('audio/welcome.mp3', False)
+			first_time = False
 
 
 def check_box(box_timer, in_box): # return what the timer for each box should be
@@ -441,6 +444,7 @@ def check_box(box_timer, in_box): # return what the timer for each box should be
 
 
 def main():
+	global audio
 	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 	to_compare_jumps = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
@@ -451,8 +455,7 @@ def main():
 
 	premila = False
 	while True:
-		play_audio("welcome.mp3")
-		option = run_menu(options = ["Squats", "Pushups", "All", "Jumping Jacks", "BirdDogs"], choose_exercises=True, scores = scores_dict)
+		option = run_menu(options = ["Squats", "Pushups", "All", "Jumping Jacks", "BirdDogs"], choose_exercises=True, scores = scores_dict, first_time = True)
 		speed_factor = run_menu(options = ["Slow", "Normal", "Fast"], choose_exercises=False, scores = dict())
 		if speed_factor == 0:	# slow
 			speed_factor = .5
