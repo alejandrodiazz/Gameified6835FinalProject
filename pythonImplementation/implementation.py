@@ -237,7 +237,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		fps = 1/(cTime - pTime)
 		pTime = cTime
 
-		# ADD ON OTHER VIDEO
+		# ADD ON OTHER VIDEO, does ending work now??
 		# If the last frame is reached, reset the video
 		if time_passed >= video_length:
 			count = 0
