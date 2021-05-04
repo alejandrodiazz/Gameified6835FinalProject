@@ -183,8 +183,12 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	mid_rep = None
 	total_score = 0
 	num_good_reps = 0
+	num_decent_reps = 0
 	good_rep = False
 	list_accuracies = []
+	decent_rep = False
+	terrible_rep = False
+	couldbebetter_rep = False
 
 	pTime = 0
 	frame_counter = 0
@@ -228,10 +232,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			continue
 		# accuracy for a single rep
 		frame_cam, accuracy, incorrect_angle = calculate_angle_accuracy(img = frame_cam, lmList = lmList, to_compare = to_compare, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
-		if accuracy > .90:
-			# print("good rep")
-			good_rep = True
-			
+
 		# print('score', score, 'accuracy', accuracy)
 		# print("new ex start stop", new_exercise_start, 'stop', new_exercise_stop)
 		if mid_rep: # this should happen a bunch
@@ -242,17 +243,31 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		else: # should happen once every rep
 			# playsound.playsound('audio/fail.mp3', False) # CAN BE USED TO PLAY MP3
 			# print('once every rep', accuracies_per_rep)
+			good_rep = False
+			decent_rep = False
+			couldbebetter_rep = False
+			terrible_rep = False
 			prev_score /= (accuracies_per_rep+0.0001)
 			score = prev_score
+			if score > 0.9:
+				good_rep = True
+				num_good_reps += 1
+				playsound.playsound('audio/goodrep.mp3', False)
+			elif score > 0.8:
+				decent_rep = True
+				num_decent_reps += 1
+				playsound.playsound('audio/decentrep.mp3', False)
+			elif score > 0.7:
+				couldbebetter_rep = True
+				playsound.playsound('audio/couldbebetter.mp3', False)
+			elif score < 0.7:
+				terrible_rep = True
+				playsound.playsound('audio/terriblerep.mp3', False)
 			list_accuracies.append(score)
 			total_score += score
 			prev_score = 0
 			accuracies_per_rep = 0
-			if good_rep:
-				num_good_reps += 1
-				playsound.playsound('audio/goodrep.mp3', False)
-			else:
-				playsound.playsound('audio/fail.mp3', False)
+				
 
 		cTime = time.time()
 		fps = 1/(cTime - pTime)
@@ -267,13 +282,15 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			start = current_milli_time()
 			display_string = 'Good Job! SCORE:{} '.format(truncate(total_score/10,3))
 			cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
-			display_string2 = 'Number of solid reps:{} /10'.format(num_good_reps)
+			display_string2 = 'Number of great reps:{} /10'.format(num_good_reps)
 			cv2.putText(frame_cam,display_string2,(20,150), font, 2,(0,255,0),6,cv2.LINE_AA)
+			display_string3 = 'Number of decent reps:{} /10'.format(num_decent_reps)
+			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(0,255,255),6,cv2.LINE_AA)
 			cv2.waitKey(1)
 			cv2.imshow('Gameified',frame_cam)
 			cv2.waitKey(1)
 			time.sleep(7)
-			return (num_good_reps,10, list_accuracies) # return number of reps, number of possible reps and list of accuracies for reps
+			return (num_decent_reps,10, list_accuracies) # return number of reps, number of possible reps and list of accuracies for reps
 
 		frame_vid = project_trainer_skeleton(img = frame_vid, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
 		try:
@@ -296,7 +313,23 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		if good_rep:
 			display_string3 = 'Good rep!!'
 			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
-			good_rep = False
+			# good_rep = False
+			cv2.waitKey(1)
+		elif decent_rep:
+			display_string3 = 'Decent rep!!'
+			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
+			# decent_rep = False	
+			cv2.waitKey(1)
+		elif couldbebetter_rep:
+			display_string3 = 'Could be better!'
+			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
+			# couldbebetter_rep = False
+			cv2.waitKey(1)
+		elif terrible_rep:
+			display_string3 = 'Terrible rep!!'
+			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
+			# terrible_rep = False	
+			cv2.waitKey(1)
 		cv2.waitKey(1)
 
 		cv2.imshow('Gameified',frame_cam)
