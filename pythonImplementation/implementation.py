@@ -179,7 +179,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		time_left = 6-int(round((current_milli_time() - start)/1000, 0))
 		display_string = 'Ready? ' + exercise + ' starting in:{} seconds'.format(time_left)
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
-		cv2.imshow('a',frame_cam)
+		cv2.imshow('Gameified',frame_cam)
 		cv2.waitKey(1)
 
 
@@ -242,11 +242,12 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		if time_passed >= video_length:
 			count = 0
 			print("Video Done")
-			_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
+			# _ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 			start = current_milli_time()
 			display_string = 'Good Job! SCORE:{} '.format(truncate(total_score/10,2))
 			cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
-			cv2.imshow('a',frame_cam)
+			cv2.waitKey(1)
+			cv2.imshow('Gameified',frame_cam)
 			cv2.waitKey(1)
 			time.sleep(7)
 			return
@@ -411,7 +412,7 @@ def run_menu(options, choose_exercises = True):
 		cv2.circle(frame_cam, hand, 10, (0,255, 40), -1) # display hand point
 		display_string = 'Main Menu Frames:{}'.format(int(fps))
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
-		cv2.imshow('Gameified Main Menu',frame_cam)
+		cv2.imshow('Gameified',frame_cam)
 		cv2.waitKey(1)
 
 
@@ -429,7 +430,7 @@ def main():
 	to_compare_lunges = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_birddogs = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 
-	premila = True
+	premila = False
 	while True:
 		play_audio("welcome.mp3")
 		option = run_menu(options = ["Squats", "Pushups", "All", "Jumping Jacks", "BirdDogs"], choose_exercises=True)
