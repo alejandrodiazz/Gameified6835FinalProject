@@ -11,3 +11,9 @@ Notes:
 I had to run "brew install mpg321" to download the command for the audio text to speech to work.
 
 It is likely you may have to install several libraries/packages via pip install or some equivalent. But you should be prompted to do so. 
+
+Also had to run these commands to install
+
+pip install playsound
+
+sudo pip install pyobjc
