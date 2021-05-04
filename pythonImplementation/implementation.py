@@ -263,7 +263,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			cv2.imshow('Gameified',frame_cam)
 			cv2.waitKey(1)
 			time.sleep(7)
-			return (2, 3) # return number of reps and accuracy
+			return (7,10, [0, .9, 1, 1, 1, 1, 1, 1, 1, 1]) # return number of reps, number of possible reps and list of accuracies for reps
 
 		frame_vid = project_trainer_skeleton(img = frame_vid, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
 		try:
@@ -434,7 +434,7 @@ def run_menu(options, choose_exercises, scores, first_time = False):
 
 
 		# add in scores and calories in the menu
-		calories_dict = {'pushups':.48, 'squats':.32}
+		calories_dict = {'Pushups':.48, 'Squats':.32}
 		y_location = 240
 		for key in scores:
 			cv2.putText(frame_cam,"Stats",(20, 170), font, 2.4,(0,255,0),6,cv2.LINE_AA)
@@ -444,7 +444,7 @@ def run_menu(options, choose_exercises, scores, first_time = False):
 				display_string += str(scores[key][1]) + " acc, " 
 				display_string += str(truncate(scores[key][0] * calories_dict[key], 2))+ " calories"
 			else:
-				display_string = key + ": " + str(scores[key][0]) + " reps, " + str(scores[key][1]) + "acc, " + str(truncate(scores[key][0]*.4, 2))+ " calories"
+				display_string = key + ": " + str(scores[key][0]) + " reps, " + str(scores[key][1]) + " acc, " + str(truncate(scores[key][0]*.4, 2))+ " calories"
 			cv2.putText(frame_cam,display_string,(20,y_location), font, 1.2,(0,255,0),4,cv2.LINE_AA)
 			y_location += 60
 
@@ -464,6 +464,13 @@ def check_box(box_timer, in_box): # return what the timer for each box should be
 	else:
 		return 0
 
+def update_dict(exercise, scores_dict, new_stats):
+	if exercise in scores_dict:
+		scores_dict[exercise] = (scores_dict[exercise][0]+new_stats[0], scores_dict[exercise][1]+new_stats[1], scores_dict[exercise][0] +new_stats[0])
+	else:
+		scores_dict[exercise] = new_stats
+	return scores_dict 
+
 
 def main():
 	global audio
@@ -473,7 +480,8 @@ def main():
 	to_compare_lunges = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_birddogs = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
 
-	scores_dict = {'Squats':(40, .90), 'Pushups': (50, .99)}
+	# number of reps completed, number of possible reps attainable, avg accuracy for completed reps
+	scores_dict =  dict() # e.g. {'Squats':(40, 50, .90), 'Pushups': (40, 50, .99)} 
 
 	premila = True
 	while True:
@@ -487,25 +495,34 @@ def main():
 			speed_factor ==1.5
 		if premila == False:
 			if option == 0: 	# squats
-				scores_dict['squats'] = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				new_stats = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				scores_dict = update_dict("Squats", scores_dict, new_stats)
 			elif option == 1:	# pushups
-				scores_dict['pushups'] = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+				new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+				scores_dict = update_dict("Pushups", scores_dict, new_stats)
 			elif option == 2:	# alls
-				scores_dict['squats'] = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-				scores_dict['pushups'] = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+				new_stats = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				scores_dict = update_dict("Squats", scores_dict, new_stats)
+				new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+				scores_dict = update_dict("Pushups", scores_dict, new_stats)
 		else:
 			if option == 0: 	# squats
-				run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				new_stats = run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				scores_dict = update_dict("Squats", scores_dict, new_stats)
 			elif option == 1:	# pushups
-				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+				new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+				scores_dict = update_dict("Pushups", scores_dict, new_stats)
 			elif option == 2:	# alls
-				run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+				new_stats = run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				scores_dict = update_dict("Squats", scores_dict, new_stats)
+				new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+				scores_dict = update_dict("Pushups", scores_dict, new_stats)
 			elif option == 3:	# pushups
-				run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
+				new_stats = run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
+				scores_dict = update_dict("Jumping Jacks", scores_dict, new_stats)
 			elif option == 4:	# pushups
-				run(csv = 'premila_birddogs.csv', video_file= 'videos/premilabirddogs200k.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
-			
+				new_stats = run(csv = 'premila_birddogs.csv', video_file= 'videos/premilabirddogs200k.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
+				scores_dict = update_dict("BirdDogs", scores_dict, new_stats)			
 
 if __name__ == "__main__":
 	main()
