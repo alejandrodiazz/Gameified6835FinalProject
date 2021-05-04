@@ -312,22 +312,22 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		cv2.putText(frame_cam,display_string3,(20,150), font, 1,(0,255,0),2,cv2.LINE_AA)
 		if good_rep:
 			display_string3 = 'Good rep!!'
-			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# good_rep = False
 			cv2.waitKey(1)
 		elif decent_rep:
 			display_string3 = 'Decent rep!!'
-			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# decent_rep = False	
 			cv2.waitKey(1)
 		elif couldbebetter_rep:
 			display_string3 = 'Could be better!'
-			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# couldbebetter_rep = False
 			cv2.waitKey(1)
 		elif terrible_rep:
 			display_string3 = 'Terrible rep!!'
-			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# terrible_rep = False	
 			cv2.waitKey(1)
 		cv2.waitKey(1)
