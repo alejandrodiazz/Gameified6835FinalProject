@@ -138,6 +138,10 @@ def project_trainer_skeleton(img, trainer_rows, trainer_times, timestamp):
 
 	return img
 
+def truncate(n, decimals=0):
+    multiplier = 10 ** decimals
+    return int(n * multiplier) / multiplier
+
 def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	identifier, trainer_times, trainer_rows = get_data(csv)
 	current_milli_time = lambda: int(round(time.time() * 1000))
@@ -151,6 +155,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	fps = cap_vid.get(cv2.CAP_PROP_FPS)     # OpenCV2 version 2 used "CV_CAP_PROP_FPS"
 	frame_count = int(cap_vid.get(cv2.CAP_PROP_FRAME_COUNT))
 	video_length = frame_count/fps * 1000 	# in milliseconds
+	single_exercise_length = (video_length/10)  # length of a single exercise assuming there are 10 per
 	font = cv2.FONT_HERSHEY_SIMPLEX
 
 	width 	= int(720/3)  
@@ -158,13 +163,17 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	start 	= current_milli_time()
 	alpha 	= 0.1
 	score = 0
+	prev_score = 0
+	accuracies_per_rep = 0
+	mid_rep = False
+	total_score = 0
 
 	pTime = 0
 	frame_counter = 0
 	detector = pm.poseDetector()
 
 
-	while current_milli_time() - start < 6000:
+	while current_milli_time() - start < 6000: 
 		success, frame_cam = cap_cam.read()
 		frame_cam = cv2.flip(frame_cam,1)
 		time_left = 6-int(round((current_milli_time() - start)/1000, 0))
@@ -175,10 +184,25 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 
 
 	start 	= current_milli_time()
+	count = 0 # number of exercises done so far
 	while True:
 		# read from the camera
 		success, frame_cam = cap_cam.read()
 		time_passed = int((current_milli_time() - start) * speed_factor) # Capture the frame at the current time point
+		new_exercise_start = int(start) + int((count*single_exercise_length))
+		new_exercise_stop = int(start) + int(((count+1)*single_exercise_length)) 
+		# checking if an exercise has been completed
+		# print('time passed', time_passed, "new ex start", new_exercise_start, "new ex stop", new_exercise_stop)
+		# print("time passed +start ", time_passed+start, "new_ex start", new_exercise_start)
+		if time_passed + (start) >= new_exercise_start: # once
+			mid_rep = False
+			print('happens once reset for a rep')
+			count += 1
+			# we are going faster through the video, (or slower), so we see less or more of the vid, respectively
+			# this means we just increment twice as slow or twice as fast. 
+		else: # most of the time
+			print("during rep")
+			mid_rep = True
 		frame_cam = cv2.flip(frame_cam,1)
 
 		# read from the video
@@ -192,9 +216,22 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		if len(lmList) == 0:
 			print("ERRRRORRRR: Length of list 0")
 			continue
-
+		# accuracy for a single rep
 		frame_cam, accuracy = calculate_angle_accuracy(img = frame_cam, lmList = lmList, to_compare = to_compare, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
-		score += accuracy
+		print('score', score, 'accuracy', accuracy)
+		# print("new ex start stop", new_exercise_start, 'stop', new_exercise_stop)
+		if mid_rep: # this should happen a bunch
+			# we are mid rep
+			print('mid rep')
+			accuracies_per_rep += 1
+			prev_score += accuracy
+		else: # should happen once every rep
+			print('once every rep', accuracies_per_rep)
+			prev_score /= (accuracies_per_rep+0.0001)
+			score = prev_score
+			total_score += score
+			prev_score = 0
+			accuracies_per_rep = 0
 
 		cTime = time.time()
 		fps = 1/(cTime - pTime)
@@ -203,10 +240,11 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# ADD ON OTHER VIDEO
 		# If the last frame is reached, reset the video
 		if time_passed >= video_length:
+			count = 0
 			print("Video Done")
 			_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 			start = current_milli_time()
-			display_string = 'Good Job! SCORE:{} '.format(int(score))
+			display_string = 'Good Job! SCORE:{} '.format(truncate(total_score/10,2))
 			cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
 			cv2.imshow('a',frame_cam)
 			cv2.waitKey(1)
@@ -225,13 +263,15 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# Change the region with the result
 		frame_cam[60:60+width,800:800+height] = added_image
 		# For displaying current value of alpha(weights)
-		display_string = 'Frames:{} Accuracy:{}'.format(round(fps,1),accuracy)
-		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),5,cv2.LINE_AA)
+		display_string = 'Frames:{} Accuracy:{}'.format(round(fps,1),truncate(score, 2)) + ' Exercises:{}'.format(int(count))
+		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),2,cv2.LINE_AA)
+		cv2.waitKey(1)
+
 		cv2.imshow('Gameified',frame_cam)
 
 		cv2.waitKey(1)
 
-def run_menu(options):
+def run_menu(options, choose_exercises = True):
 	current_milli_time = lambda: int(round(time.time() * 1000))
 
 	# camera feed
@@ -244,8 +284,10 @@ def run_menu(options):
 	frame_counter = 0
 	detector = pm.poseDetector()
 
-	timers = [0, 0, 0]
-
+	if choose_exercises:
+		timers = [0, 0, 0, 0, 0]
+	else:
+		timers = [0,0,0]
 	while True:
 		success, frame_cam = cap_cam.read()
 		frame_cam = cv2.flip(frame_cam,1)
@@ -261,29 +303,63 @@ def run_menu(options):
 		fps = 1/(cTime - pTime)
 		pTime = cTime
 
-		option0_start = (int(screen_width*(2/3)), int(screen_height*(1/10)))
-		option0_end = (int(screen_width*(5/6)), int(screen_height*(2.5/10)))
-		option1_start = (int(screen_width*(2/3)), int(screen_height*(3/10)))
-		option1_end = (int(screen_width*(5/6)), int(screen_height*(4.5/10)))
-		option2_start = (int(screen_width*(2/3)), int(screen_height*(5/10)))
-		option2_end = (int(screen_width*(5/6)), int(screen_height*(6.5/10)))
+		if choose_exercises:
+			option0_start = (int(screen_width*(2/3)), int(screen_height*(0/10)))
+			option0_end = (int(screen_width*(5/6)), int(screen_height*(1.5/10)))
+			option1_start = (int(screen_width*(2/3)), int(screen_height*(2/10)))
+			option1_end = (int(screen_width*(5/6)), int(screen_height*(3.5/10)))
+			option2_start = (int(screen_width*(2/3)), int(screen_height*(4/10)))
+			option2_end = (int(screen_width*(5/6)), int(screen_height*(5.5/10)))
+			option3_start = (int(screen_width*(2/3)), int(screen_height*(6/10)))
+			option3_end = (int(screen_width*(5/6)), int(screen_height*(7.5/10)))
+			option4_start = (int(screen_width*(2/3)), int(screen_height*(8/10)))
+			option4_end = (int(screen_width*(5/6)), int(screen_height*(9.5/10)))
+		else:
+			option0_start = (int(screen_width*(2/3)), int(screen_height*(0/10)))
+			option0_end = (int(screen_width*(5/6)), int(screen_height*(1.5/10)))
+			option1_start = (int(screen_width*(2/3)), int(screen_height*(2/10)))
+			option1_end = (int(screen_width*(5/6)), int(screen_height*(3.5/10)))
+			option2_start = (int(screen_width*(2/3)), int(screen_height*(4/10)))
+			option2_end = (int(screen_width*(5/6)), int(screen_height*(5.5/10)))	
 
 		i = index_of_body_part("left_thumb")
 		hand = (int(lmList[i][1]), int(lmList[i][2]))
-		x0 = hand[0]>option0_start[0] and hand[0]<option0_end[0]
-		y0 = hand[1]>option0_start[1] and hand[1]<option0_end[1]
-		in_box0 = x0 and y0
+		if choose_exercises:
+			x0 = hand[0]>option0_start[0] and hand[0]<option0_end[0]
+			y0 = hand[1]>option0_start[1] and hand[1]<option0_end[1]
+			in_box0 = x0 and y0
 
-		x1 = hand[0]>option1_start[0] and hand[0]<option1_end[0]
-		y1 = hand[1]>option1_start[1] and hand[1]<option1_end[1]
-		in_box1 = x1 and y1
+			x1 = hand[0]>option1_start[0] and hand[0]<option1_end[0]
+			y1 = hand[1]>option1_start[1] and hand[1]<option1_end[1]
+			in_box1 = x1 and y1
 
-		x2 = hand[0]>option2_start[0] and hand[0]<option2_end[0]
-		y2 = hand[1]>option2_start[1] and hand[1]<option2_end[1]
-		in_box2 = x2 and y2
+			x2 = hand[0]>option2_start[0] and hand[0]<option2_end[0]
+			y2 = hand[1]>option2_start[1] and hand[1]<option2_end[1]
+			in_box2 = x2 and y2
 
-		boxes = [in_box0,in_box1,in_box2]
+			x3 = hand[0]>option3_start[0] and hand[0]<option3_end[0]
+			y3 = hand[1]>option3_start[1] and hand[1]<option3_end[1]
+			in_box3 = x3 and y3
 
+			x4 = hand[0]>option4_start[0] and hand[0]<option4_end[0]
+			y4 = hand[1]>option4_start[1] and hand[1]<option4_end[1]
+			in_box4 = x4 and y4
+
+			boxes = [in_box0,in_box1,in_box2,in_box3, in_box4]
+		else:
+			x0 = hand[0]>option0_start[0] and hand[0]<option0_end[0]
+			y0 = hand[1]>option0_start[1] and hand[1]<option0_end[1]
+			in_box0 = x0 and y0
+
+			x1 = hand[0]>option1_start[0] and hand[0]<option1_end[0]
+			y1 = hand[1]>option1_start[1] and hand[1]<option1_end[1]
+			in_box1 = x1 and y1
+
+			x2 = hand[0]>option2_start[0] and hand[0]<option2_end[0]
+			y2 = hand[1]>option2_start[1] and hand[1]<option2_end[1]
+			in_box2 = x2 and y2
+
+			boxes = [in_box0,in_box1,in_box2]
 		new = list()
 		for index, timer in enumerate(timers):	# take care of incrementing timers
 			timer = check_box(timer, boxes[index])
@@ -293,20 +369,44 @@ def run_menu(options):
 		timers = new
 
 		menu_font_size = 1.5
-		# first option
-		cv2.rectangle(frame_cam, option0_start, option0_end, (0,255,0), -1)
-		point = (option0_start[0], option0_end[1])
-		cv2.putText(frame_cam,options[0],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
-		# second option
-		cv2.rectangle(frame_cam, option1_start, option1_end, (0,0,255), -1)
-		point = (option1_start[0], option1_end[1])
-		cv2.putText(frame_cam,options[1],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+		if choose_exercises:
+			# first option
+			cv2.rectangle(frame_cam, option0_start, option0_end, (0,255,0), -1)
+			point = (option0_start[0], option0_end[1])
+			cv2.putText(frame_cam,options[0],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+			# second option
+			cv2.rectangle(frame_cam, option1_start, option1_end, (0,0,255), -1)
+			point = (option1_start[0], option1_end[1])
+			cv2.putText(frame_cam,options[1],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
 
-		# third option
-		cv2.rectangle(frame_cam, option2_start, option2_end, (100,0,100), -1)
-		point = (option2_start[0], option2_end[1])
-		cv2.putText(frame_cam,options[2],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+			# third option
+			cv2.rectangle(frame_cam, option2_start, option2_end, (100,0,100), -1)
+			point = (option2_start[0], option2_end[1])
+			cv2.putText(frame_cam,options[2],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
 
+			# fourth option
+			cv2.rectangle(frame_cam, option3_start, option3_end, (100,100,100), -1)
+			point = (option3_start[0], option3_end[1])
+			cv2.putText(frame_cam,options[3],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+
+			# fifth option
+			cv2.rectangle(frame_cam, option4_start, option4_end, (0,100,100), -1)
+			point = (option4_start[0], option4_end[1])
+			cv2.putText(frame_cam,options[4],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+
+		else:
+			cv2.rectangle(frame_cam, option0_start, option0_end, (0,255,0), -1)
+			point = (option0_start[0], option0_end[1])
+			cv2.putText(frame_cam,options[0],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+			# second option
+			cv2.rectangle(frame_cam, option1_start, option1_end, (0,0,255), -1)
+			point = (option1_start[0], option1_end[1])
+			cv2.putText(frame_cam,options[1],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
+
+			# third option
+			cv2.rectangle(frame_cam, option2_start, option2_end, (100,0,100), -1)
+			point = (option2_start[0], option2_end[1])
+			cv2.putText(frame_cam,options[2],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
 
 		cv2.circle(frame_cam, hand, 10, (0,255, 40), -1) # display hand point
 		display_string = 'Main Menu Frames:{}'.format(int(fps))
@@ -325,26 +425,42 @@ def check_box(box_timer, in_box): # return what the timer for each box should be
 def main():
 	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
 	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
-	
+	to_compare_jumps = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
+	to_compare_lunges = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
+	to_compare_birddogs = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
+
+	premila = True
 	while True:
 		play_audio("welcome.mp3")
-		option = run_menu(options = ["Squats", "Pushups", "All"])
-		speed_factor = run_menu(options = ["Slow", "Normal", "Fast"])
+		option = run_menu(options = ["Squats", "Pushups", "All", "Jumping Jacks", "BirdDogs"], choose_exercises=True)
+		speed_factor = run_menu(options = ["Slow", "Normal", "Fast"], choose_exercises=False)
 		if speed_factor == 0:	# slow
-			speed_factor = .4
+			speed_factor = .5
 		elif speed_factor == 1: # normal
 			pass
 		elif speed_factor == 2: # fast
 			speed_factor ==1.5
-
-		if option == 0: 	# squats
-			run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-		elif option == 1:	# pushups
-			run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-		elif option == 2:	# alls
-			run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-			run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-
+		if premila == False:
+			if option == 0: 	# squats
+				run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+			elif option == 1:	# pushups
+				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+			elif option == 2:	# alls
+				run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+		else:
+			if option == 0: 	# squats
+				run(csv = 'premila_squats.csv', video_file= 'videos/premila_squats2.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+			elif option == 1:	# pushups
+				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+			elif option == 2:	# alls
+				run(csv = 'premila_squats.csv', video_file= 'videos/premila_squats2.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+				run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+			elif option == 3:	# pushups
+				run(csv = 'premila_jumps.csv', video_file= 'videos/premila_jumps.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
+			elif option == 4:	# pushups
+				run(csv = 'premila_birddogs.csv', video_file= 'videos/premila_birddogs.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
+			
 
 if __name__ == "__main__":
 	main()
