@@ -76,7 +76,9 @@ def angle3pt(a, b, c):
 def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_times, timestamp):
 	accuracies = list()
 	rounding_factor = 2
-
+	incorrect_body_parts = list()
+	max_error = 0
+	incorrect_body_parts = to_compare[0]
 	for body_parts in to_compare:
 		i1 = index_of_body_part(body_parts[0])
 		i2 = index_of_body_part(body_parts[1])
@@ -107,6 +109,9 @@ def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_time
 		trainer_angle = round(angle3pt(bodypart1_trainer, bodypart2_trainer, bodypart3_trainer), rounding_factor)
 
 		error = abs(user_angle - trainer_angle)
+		if error > 50 and error > max_error:
+			max_error = error
+			incorrect_body_parts = body_parts
 		if error > 135:
 			accuracies.append(0)
 		else:
@@ -114,7 +119,7 @@ def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_time
 		
 	print(accuracies)
 		
-	return img, round(sum(accuracies)/len(accuracies), rounding_factor)
+	return img, round(sum(accuracies)/len(accuracies), rounding_factor), incorrect_body_parts
 
 def project_trainer_skeleton(img, trainer_rows, trainer_times, timestamp):
 	closest_index = trainer_times.index(min(trainer_times, key=lambda x:abs(x-timestamp))) # get index of closest time
@@ -165,6 +170,8 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	accuracies_per_rep = 0
 	mid_rep = False
 	total_score = 0
+	num_good_reps = 0
+	good_rep = False
 
 	pTime = 0
 	frame_counter = 0
@@ -215,7 +222,10 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			print("ERRRRORRRR: Length of list 0")
 			continue
 		# accuracy for a single rep
-		frame_cam, accuracy = calculate_angle_accuracy(img = frame_cam, lmList = lmList, to_compare = to_compare, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
+		frame_cam, accuracy, incorrect_angle = calculate_angle_accuracy(img = frame_cam, lmList = lmList, to_compare = to_compare, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
+		if accuracy > .91:
+			print("good rep")
+			good_rep = True
 		print('score', score, 'accuracy', accuracy)
 		# print("new ex start stop", new_exercise_start, 'stop', new_exercise_stop)
 		if mid_rep: # this should happen a bunch
@@ -231,6 +241,8 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			total_score += score
 			prev_score = 0
 			accuracies_per_rep = 0
+			if good_rep:
+				num_good_reps += 1
 
 		cTime = time.time()
 		fps = 1/(cTime - pTime)
@@ -243,8 +255,10 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			print("Video Done")
 			# _ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 			start = current_milli_time()
-			display_string = 'Good Job! SCORE:{} '.format(truncate(total_score/10,2))
+			display_string = 'Good Job! SCORE:{} '.format(truncate(total_score/10,3))
 			cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
+			display_string2 = 'Number of solid reps:{} /10'.format(num_good_reps)
+			cv2.putText(frame_cam,display_string2,(20,150), font, 2,(0,255,0),6,cv2.LINE_AA)
 			cv2.waitKey(1)
 			cv2.imshow('Gameified',frame_cam)
 			cv2.waitKey(1)
@@ -263,8 +277,16 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# Change the region with the result
 		frame_cam[60:60+width,800:800+height] = added_image
 		# For displaying current value of alpha(weights)
-		display_string = 'Frames:{} Accuracy:{}'.format(round(fps,1),truncate(score, 2)) + ' Exercises:{}'.format(int(count))
+		display_string = 'Frames:{} Accuracy:{}'.format(round(fps,1),truncate(score, 2)) + ' Reps:{}'.format(int(count)) + '/10'
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),2,cv2.LINE_AA)
+		display_string2 = 'Focus on your ' + incorrect_angle[0] 
+		display_string3 = ',' +incorrect_angle[1] + ' and your ' + incorrect_angle[2]
+		cv2.putText(frame_cam,display_string2,(20,100), font, 1,(0,255,0),2,cv2.LINE_AA)
+		cv2.putText(frame_cam,display_string3,(20,150), font, 1,(0,255,0),2,cv2.LINE_AA)
+		if good_rep:
+			display_string3 = 'Good rep!!'
+			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(100,150,0),3,cv2.LINE_AA)
+			good_rep = False
 		cv2.waitKey(1)
 
 		cv2.imshow('Gameified',frame_cam)
