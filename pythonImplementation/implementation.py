@@ -172,6 +172,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	total_score = 0
 	num_good_reps = 0
 	good_rep = False
+	list_accuracies = []
 
 	pTime = 0
 	frame_counter = 0
@@ -239,6 +240,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			print('once every rep', accuracies_per_rep)
 			prev_score /= (accuracies_per_rep+0.0001)
 			score = prev_score
+			list_accuracies.append(score)
 			total_score += score
 			prev_score = 0
 			accuracies_per_rep = 0
@@ -267,7 +269,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			cv2.imshow('Gameified',frame_cam)
 			cv2.waitKey(1)
 			time.sleep(7)
-			return (7,10, [0, .9, 1, 1, 1, 1, 1, 1, 1, 1]) # return number of reps, number of possible reps and list of accuracies for reps
+			return (num_good_reps,10, list_accuracies) # return number of reps, number of possible reps and list of accuracies for reps
 
 		frame_vid = project_trainer_skeleton(img = frame_vid, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
 		try:
