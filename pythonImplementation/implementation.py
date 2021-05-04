@@ -482,7 +482,7 @@ def main():
 		if speed_factor == 0:	# slow
 			speed_factor = .5
 		elif speed_factor == 1: # normal
-			pass
+			speed_factor = 1
 		elif speed_factor == 2: # fast
 			speed_factor ==1.5
 		if premila == False:
