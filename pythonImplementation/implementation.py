@@ -244,6 +244,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			accuracies_per_rep = 0
 			if good_rep:
 				num_good_reps += 1
+				playsound.playsound('audio/goodrep.mp3', False)
 			else:
 				playsound.playsound('audio/fail.mp3', False)
 
@@ -289,7 +290,6 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		if good_rep:
 			display_string3 = 'Good rep!!'
 			cv2.putText(frame_cam,display_string3,(20,200), font, 2,(200,150,0),3,cv2.LINE_AA)
-			playsound.playsound('audio/goodrep.mp3', False)
 			good_rep = False
 		cv2.waitKey(1)
 
