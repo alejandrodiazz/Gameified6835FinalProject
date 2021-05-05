@@ -154,6 +154,8 @@ def run_waiting_screen(exercise, cap_cam, time_left, font):
 	frame_cam = cv2.flip(frame_cam,1)
 	display_string = 'Ready? ' + exercise + ' starting in:{} seconds'.format(time_left)
 	cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
+	display_string2 = "Align your joints with the trainer's joints"
+	cv2.putText(frame_cam,display_string2,(20,150), font, 2,(255,0,0),6,cv2.LINE_AA)
 	cv2.imshow('Gameified',frame_cam)
 	cv2.waitKey(1)
 
