@@ -156,6 +156,8 @@ def run_waiting_screen(exercise, cap_cam, time_left, font):
 	cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
 	display_string2 = "Align your joints with the trainer's joints"
 	cv2.putText(frame_cam,display_string2,(20,150), font, 2,(255,0,0),6,cv2.LINE_AA)
+	display_string3 = 'Aim for above ' + '%s%%' % 90 + ' accuracy!'
+	cv2.putText(frame_cam,display_string3,(20,250), font, 2,(255,0,255),6,cv2.LINE_AA)
 	cv2.imshow('Gameified',frame_cam)
 	cv2.waitKey(1)
 
@@ -199,6 +201,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	while current_milli_time() - start < 6000: 
 		time_left = 6-int(round((current_milli_time() - start)/1000, 0))
 		run_waiting_screen(exercise, cap_cam, time_left, font)
+
 
 	start 	= current_milli_time()
 	count = 0 # number of exercises done so far
@@ -306,7 +309,13 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# Change the region with the result
 		frame_cam[60:60+width,800:800+height] = added_image
 		# For displaying current value of alpha(weights)
-		display_string = 'Frames:{} Accuracy:{}'.format(round(fps,1),truncate(score, 2)) + ' Reps:{}'.format(int(count)) + '/10'
+		if count > 5:
+			display_string_encourg = 'Halfway there!'
+			cv2.putText(frame_cam,display_string_encourg,(20,300), font, 2,(255,255,0),2,cv2.LINE_AA)
+		elif count > 8:
+			display_string_encourg2 = 'Only two more!'
+			cv2.putText(frame_cam,display_string_encourg2,(20,300), font, 2,(255,255,0),2,cv2.LINE_AA)	
+		display_string = 'Frames:{}'.format(round(fps,1)) + ' Accuracy:'+ '%s%%' %'{}'.format(truncate(score*100, 0))  + ' Reps:{}'.format(int(count)) + '/10'
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),2,cv2.LINE_AA)
 		display_string2 = 'Focus on your ' + incorrect_angle[0] 
 		display_string3 = ',' +incorrect_angle[1] + ' and your ' + incorrect_angle[2]
@@ -328,7 +337,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			# couldbebetter_rep = False
 			cv2.waitKey(1)
 		elif terrible_rep:
-			display_string3 = 'Terrible rep!!'
+			display_string3 = 'Not so good, you got this!'
 			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# terrible_rep = False	
 			cv2.waitKey(1)
