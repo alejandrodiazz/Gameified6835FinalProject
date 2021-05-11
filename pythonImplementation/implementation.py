@@ -99,24 +99,34 @@ def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_time
 			continue
 
 		user_angle = round(angle3pt(bodypart1, bodypart2, bodypart3 ), rounding_factor)		# find angle of user
-		img = cv2.circle(img, (bodypart1[0], bodypart1[1]), 15, (0, 0, 255), cv2.FILLED)	# draw points of interest
-		img = cv2.circle(img, (bodypart2[0], bodypart2[1]), 15, (0, 0, 255), cv2.FILLED)
-		img = cv2.circle(img, (bodypart3[0], bodypart3[1]), 15, (0, 0, 255), cv2.FILLED)
+		img = cv2.circle(img, (bodypart1[0], bodypart1[1]), 15, (0, 255, 0), cv2.FILLED)	# draw points of interest
+		img = cv2.circle(img, (bodypart2[0], bodypart2[1]), 15, (0, 255, 0), cv2.FILLED)
+		img = cv2.circle(img, (bodypart3[0], bodypart3[1]), 15, (0, 255, 0), cv2.FILLED)
 		
-		closest_index = trainer_times.index(min(trainer_times, key=lambda x:abs(x-timestamp))) # get index of closest time
-		bodypart1_trainer = [int(trainer_rows[closest_index][i1][1]), int(trainer_rows[closest_index][i1][2])]
-		bodypart2_trainer = [int(trainer_rows[closest_index][i2][1]), int(trainer_rows[closest_index][i2][2])]
-		bodypart3_trainer = [int(trainer_rows[closest_index][i3][1]), int(trainer_rows[closest_index][i3][2])]
-		trainer_angle = round(angle3pt(bodypart1_trainer, bodypart2_trainer, bodypart3_trainer), rounding_factor)
 
-		error = abs(user_angle - trainer_angle)
-		if error > 30 and error > max_error:
-			max_error = error
+		middle_index = trainer_times.index(min(trainer_times, key=lambda x:abs(x-timestamp))) # get index of closest time
+		closest_indices = [i for i in range(middle_index-10, middle_index+10)]
+		lowest_error = 1000
+		for closest_index in closest_indices:
+			if closest_index > len(trainer_rows)-1: break
+			bodypart1_trainer = [int(trainer_rows[closest_index][i1][1]), int(trainer_rows[closest_index][i1][2])]
+			bodypart2_trainer = [int(trainer_rows[closest_index][i2][1]), int(trainer_rows[closest_index][i2][2])]
+			bodypart3_trainer = [int(trainer_rows[closest_index][i3][1]), int(trainer_rows[closest_index][i3][2])]
+			trainer_angle = round(angle3pt(bodypart1_trainer, bodypart2_trainer, bodypart3_trainer), rounding_factor)
+			error = abs(user_angle - trainer_angle)
+			if error < lowest_error:
+				lowest_error = error
+		
+		if lowest_error > 30 and lowest_error > max_error:
+			max_error = lowest_error
 			incorrect_body_parts = body_parts
-		if error > error_floor:
+			img = cv2.circle(img, (bodypart1[0], bodypart1[1]), 15, (255, 0, 0), cv2.FILLED)	# draw points of interest
+			img = cv2.circle(img, (bodypart2[0], bodypart2[1]), 15, (255, 0, 0), cv2.FILLED)
+			img = cv2.circle(img, (bodypart3[0], bodypart3[1]), 15, (255, 0, 0), cv2.FILLED)
+		if lowest_error > error_floor:
 			accuracies.append(0)
 		else:
-			accuracies.append(round((error_floor - error)/error_floor, rounding_factor))
+			accuracies.append(round((error_floor - lowest_error)/error_floor, rounding_factor))
 		print(str(body_parts) + " " +str(user_angle) +" " +str(trainer_angle))
 		
 	# print(accuracies)
@@ -158,6 +168,8 @@ def run_waiting_screen(exercise, cap_cam, time_left, font):
 	cv2.putText(frame_cam,display_string2,(20,150), font, 2,(255,0,0),6,cv2.LINE_AA)
 	display_string3 = 'Aim for above ' + '%s%%' % 90 + ' accuracy!'
 	cv2.putText(frame_cam,display_string3,(20,250), font, 2,(255,0,255),6,cv2.LINE_AA)
+	display_string4 = 'Joints turn red if correction is needed'
+	cv2.putText(frame_cam,display_string4,(20,350), font, 2,(0,100,255),6,cv2.LINE_AA)
 	cv2.imshow('Gameified',frame_cam)
 	cv2.waitKey(1)
 
@@ -204,7 +216,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 
 
 	start 	= current_milli_time()
-	count = 0 # number of exercises done so far
+	count = 1 # number of exercises done so far
 	while True:
 		# read from the camera
 		success, frame_cam = cap_cam.read()
@@ -218,6 +230,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			mid_rep = False
 			print('happens once reset for a rep')
 			count += 1
+			playsound.playsound('audio/click-soundmp3.mp3', False)
 			# we are going faster through the video, (or slower), so we see less or more of the vid, respectively
 			# this means we just increment twice as slow or twice as fast. 
 		else: # most of the time
@@ -261,13 +274,13 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			elif score > 0.8:
 				decent_rep = True
 				num_decent_reps += 1
-				playsound.playsound('audio/decentrep.mp3', False)
+				playsound.playsound('audio/couldbebetter.mp3', False)
 			elif score > 0.7:
 				couldbebetter_rep = True
-				playsound.playsound('audio/couldbebetter.mp3', False)
+				playsound.playsound('audio/decentrep.mp3', False)
 			elif score < 0.7:
 				terrible_rep = True
-				playsound.playsound('audio/terriblerep.mp3', False)
+				# playsound.playsound('audio/terriblerep.mp3', False)
 			list_accuracies.append(score)
 			total_score += score
 			prev_score = 0
@@ -311,34 +324,34 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# For displaying current value of alpha(weights)
 		if count > 5:
 			display_string_encourg = 'Halfway there!'
-			cv2.putText(frame_cam,display_string_encourg,(20,300), font, 2,(255,255,0),2,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string_encourg,(20,250), font, 2,(150,255,100),2,cv2.LINE_AA)
 		elif count > 8:
 			display_string_encourg2 = 'Only two more!'
 			cv2.putText(frame_cam,display_string_encourg2,(20,300), font, 2,(255,255,0),2,cv2.LINE_AA)	
 		display_string = 'Frames:{}'.format(round(fps,1)) + ' Accuracy:'+ '%s%%' %'{}'.format(truncate(score*100, 0))  + ' Reps:{}'.format(int(count)) + '/10'
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),2,cv2.LINE_AA)
-		display_string2 = 'Focus on your ' + incorrect_angle[0] 
-		display_string3 = ',' +incorrect_angle[1] + ' and your ' + incorrect_angle[2]
-		cv2.putText(frame_cam,display_string2,(20,100), font, 1,(0,255,0),2,cv2.LINE_AA)
-		cv2.putText(frame_cam,display_string3,(20,150), font, 1,(0,255,0),2,cv2.LINE_AA)
+		# display_string2 = 'Focus on your ' + incorrect_angle[0] 
+		# display_string3 = ',' +incorrect_angle[1] + ' and your ' + incorrect_angle[2]
+		# cv2.putText(frame_cam,display_string2,(20,100), font, 1,(0,255,0),2,cv2.LINE_AA)
+		# cv2.putText(frame_cam,display_string3,(20,150), font, 1,(0,255,0),2,cv2.LINE_AA)
 		if good_rep:
 			display_string3 = 'Good rep!!'
-			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,150), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# good_rep = False
 			cv2.waitKey(1)
 		elif decent_rep:
 			display_string3 = 'Decent rep!!'
-			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,150), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# decent_rep = False	
 			cv2.waitKey(1)
 		elif couldbebetter_rep:
 			display_string3 = 'Could be better!'
-			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,150), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# couldbebetter_rep = False
 			cv2.waitKey(1)
 		elif terrible_rep:
 			display_string3 = 'Not so good, you got this!'
-			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(200,150,0),3,cv2.LINE_AA)
+			cv2.putText(frame_cam,display_string3,(20,150), font, 2,(200,150,0),3,cv2.LINE_AA)
 			# terrible_rep = False	
 			cv2.waitKey(1)
 		cv2.waitKey(1)
@@ -528,11 +541,10 @@ def update_dict(exercise, scores_dict, new_stats):
 
 def main():
 	global audio
-	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
-	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
-	to_compare_jumps = [["right_hip", "left_ankle", "right_ankle"], ["right_wrist","right_shoulder", "right_hip"]]
-	# to_compare_lunges = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_hip", "right_knee"]]
-	to_compare_birddogs = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"]]
+	to_compare_squats = [["right_hip", "right_knee", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"], ["left_hip", "left_knee", "left_ankle"], ["left_shoulder","left_elbow", "left_wrist"]]
+	to_compare_pushups = [["right_shoulder","right_hip", "right_ankle"], ["right_shoulder","right_elbow", "right_wrist"], ["left_shoulder","left_hip", "left_ankle"], ["left_shoulder","left_elbow", "left_wrist"]]
+	to_compare_jumps = [["right_hip", "right_knee", "right_ankle"], ["right_wrist","right_shoulder", "right_elbow"], ["left_hip", "left_knee", "left_ankle"], ["left_wrist","left_shoulder", "left_elbow"]]
+	to_compare_birddogs = [["right_hip","right_knee", "right_ankle"], ["right_wrist","right_elbow", "right_shoulder"], ["left_hip","left_knee", "left_ankle"], ["left_wrist","left_elbow", "left_shoulder"]]
 
 	# number of reps completed, number of possible reps attainable, avg accuracy for completed reps
 	scores_dict =  dict() # e.g. {'Squats':(40, 50, .90), 'Pushups': (40, 50, .99)} 
