@@ -80,6 +80,8 @@ def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_time
 	max_error = 0
 	incorrect_body_parts = to_compare[0]
 	error_floor = 70
+	buffer_region = 20 # this gives us leeway with user/video lag
+
 	for body_parts in to_compare:
 		i1 = index_of_body_part(body_parts[0])
 		i2 = index_of_body_part(body_parts[1])
@@ -103,33 +105,40 @@ def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_time
 		img = cv2.circle(img, (bodypart2[0], bodypart2[1]), 15, (0, 255, 0), cv2.FILLED)
 		img = cv2.circle(img, (bodypart3[0], bodypart3[1]), 15, (0, 255, 0), cv2.FILLED)
 		
-
 		middle_index = trainer_times.index(min(trainer_times, key=lambda x:abs(x-timestamp))) # get index of closest time
-		closest_indices = [i for i in range(middle_index-10, middle_index+10)]
+		closest_indices = [i for i in range(middle_index-buffer_region, middle_index+buffer_region)]
 		lowest_error = 1000
-		for closest_index in closest_indices:
-			if closest_index > len(trainer_rows)-1: break
-			bodypart1_trainer = [int(trainer_rows[closest_index][i1][1]), int(trainer_rows[closest_index][i1][2])]
-			bodypart2_trainer = [int(trainer_rows[closest_index][i2][1]), int(trainer_rows[closest_index][i2][2])]
-			bodypart3_trainer = [int(trainer_rows[closest_index][i3][1]), int(trainer_rows[closest_index][i3][2])]
+		for index in closest_indices:
+			if index < 0 or index > (len(trainer_rows)-1): 
+				break
+			bodypart1_trainer = [int(trainer_rows[index][i1][1]), int(trainer_rows[index][i1][2])]
+			bodypart2_trainer = [int(trainer_rows[index][i2][1]), int(trainer_rows[index][i2][2])]
+			bodypart3_trainer = [int(trainer_rows[index][i3][1]), int(trainer_rows[index][i3][2])]
 			trainer_angle = round(angle3pt(bodypart1_trainer, bodypart2_trainer, bodypart3_trainer), rounding_factor)
 			error = abs(user_angle - trainer_angle)
 			if error < lowest_error:
 				lowest_error = error
 		
-		if lowest_error > 30 and lowest_error > max_error:
+		if lowest_error > 20 and lowest_error > max_error:
 			max_error = lowest_error
 			incorrect_body_parts = body_parts
-			img = cv2.circle(img, (bodypart1[0], bodypart1[1]), 15, (255, 0, 0), cv2.FILLED)	# draw points of interest
-			img = cv2.circle(img, (bodypart2[0], bodypart2[1]), 15, (255, 0, 0), cv2.FILLED)
-			img = cv2.circle(img, (bodypart3[0], bodypart3[1]), 15, (255, 0, 0), cv2.FILLED)
 		if lowest_error > error_floor:
 			accuracies.append(0)
 		else:
 			accuracies.append(round((error_floor - lowest_error)/error_floor, rounding_factor))
-		print(str(body_parts) + " " +str(user_angle) +" " +str(trainer_angle))
-		
-	# print(accuracies)
+		# print(str(body_parts) + " " +str(user_angle) +" " +str(trainer_angle))
+	
+
+	# make the joints that have the worst error red
+	i1 = index_of_body_part(incorrect_body_parts[0])
+	i2 = index_of_body_part(incorrect_body_parts[1])
+	i3 = index_of_body_part(incorrect_body_parts[2])
+	bodypart1 = [int(lmList[i1][1]), int(lmList[i1][2])]
+	bodypart2 = [int(lmList[i2][1]), int(lmList[i2][2])]
+	bodypart3 = [int(lmList[i3][1]), int(lmList[i3][2])] 
+	img = cv2.circle(img, (bodypart1[0], bodypart1[1]), 15, (0, 0, 255), cv2.FILLED)	# draw points of interest
+	img = cv2.circle(img, (bodypart2[0], bodypart2[1]), 15, (0, 0, 255), cv2.FILLED)
+	img = cv2.circle(img, (bodypart3[0], bodypart3[1]), 15, (0, 0, 255), cv2.FILLED)
 		
 	return img, round(sum(accuracies)/len(accuracies), rounding_factor), incorrect_body_parts
 
@@ -162,14 +171,14 @@ def truncate(n, decimals=0):
 def run_waiting_screen(exercise, cap_cam, time_left, font):
 	success, frame_cam = cap_cam.read()
 	frame_cam = cv2.flip(frame_cam,1)
-	display_string = 'Ready? ' + exercise + ' starting in:{} seconds'.format(time_left)
+	display_string = 'Ready? ' + exercise + ' starting in: {} seconds'.format(time_left)
 	cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
 	display_string2 = "Align your joints with the trainer's joints"
-	cv2.putText(frame_cam,display_string2,(20,150), font, 2,(255,0,0),6,cv2.LINE_AA)
-	display_string3 = 'Aim for above ' + '%s%%' % 90 + ' accuracy!'
-	cv2.putText(frame_cam,display_string3,(20,250), font, 2,(255,0,255),6,cv2.LINE_AA)
+	cv2.putText(frame_cam,display_string2,(20,150), font, 2,(0,255,0),6,cv2.LINE_AA)
+	display_string3 = 'Aim for above ' + '%s%%' % 80 + ' accuracy!'
+	cv2.putText(frame_cam,display_string3,(20,250), font, 2,(0,255,0),6,cv2.LINE_AA)
 	display_string4 = 'Joints turn red if correction is needed'
-	cv2.putText(frame_cam,display_string4,(20,350), font, 2,(0,100,255),6,cv2.LINE_AA)
+	cv2.putText(frame_cam,display_string4,(20,350), font, 2,(0,255,0),6,cv2.LINE_AA)
 	cv2.imshow('Gameified',frame_cam)
 	cv2.waitKey(1)
 
@@ -197,9 +206,9 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	prev_score = 0
 	accuracies_per_rep = 0
 	mid_rep = None
-	total_score = 0
+	num_ok_reps = 0
 	num_good_reps = 0
-	num_decent_reps = 0
+	num_perfect_reps = 0
 	good_rep = False
 	list_accuracies = []
 	decent_rep = False
@@ -210,8 +219,8 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 	frame_counter = 0
 	detector = pm.poseDetector()
 
-	while current_milli_time() - start < 6000: 
-		time_left = 6-int(round((current_milli_time() - start)/1000, 0))
+	while current_milli_time() - start < 8000: 
+		time_left = 8-int(round((current_milli_time() - start)/1000, 0))
 		run_waiting_screen(exercise, cap_cam, time_left, font)
 
 
@@ -251,38 +260,34 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# accuracy for a single rep
 		frame_cam, accuracy, incorrect_angle = calculate_angle_accuracy(img = frame_cam, lmList = lmList, to_compare = to_compare, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
 
-		# print('score', score, 'accuracy', accuracy)
-		# print("new ex start stop", new_exercise_start, 'stop', new_exercise_stop)
 		if mid_rep: # this should happen a bunch
 			# we are mid rep
-			# print('mid rep')
 			accuracies_per_rep += 1
 			prev_score += accuracy
 		else: # should happen once every rep
 			# playsound.playsound('audio/fail.mp3', False) # CAN BE USED TO PLAY MP3
-			# print('once every rep', accuracies_per_rep)
 			good_rep = False
 			decent_rep = False
 			couldbebetter_rep = False
 			terrible_rep = False
 			prev_score /= (accuracies_per_rep+0.0001)
 			score = prev_score
-			if score > 0.9:
+			if score > 0.8:
 				good_rep = True
-				num_good_reps += 1
+				num_perfect_reps += 1
 				playsound.playsound('audio/goodrep.mp3', False)
-			elif score > 0.8:
-				decent_rep = True
-				num_decent_reps += 1
-				playsound.playsound('audio/couldbebetter.mp3', False)
 			elif score > 0.7:
+				decent_rep = True
+				num_good_reps += 1
+				playsound.playsound('audio/couldbebetter.mp3', False)
+			elif score > 0.6:
 				couldbebetter_rep = True
+				num_ok_reps += 1
 				playsound.playsound('audio/decentrep.mp3', False)
-			elif score < 0.7:
+			elif score < 0.6:
 				terrible_rep = True
 				# playsound.playsound('audio/terriblerep.mp3', False)
 			list_accuracies.append(score)
-			total_score += score
 			prev_score = 0
 			accuracies_per_rep = 0
 				
@@ -298,17 +303,19 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			print("Video Done")
 			_ = cap_vid.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset to the first frame. Returns bool.
 			start = current_milli_time()
-			display_string = 'Good Job! SCORE:{} '.format(truncate(total_score/10,3))
+			display_string = 'Good Job! SCORE:{} '.format(truncate(sum(list_accuracies)/10,3))
 			cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),6,cv2.LINE_AA)
-			display_string2 = 'Number of great reps:{} /10'.format(num_good_reps)
-			cv2.putText(frame_cam,display_string2,(20,150), font, 2,(0,255,0),6,cv2.LINE_AA)
-			display_string3 = 'Number of decent reps:{} /10'.format(num_decent_reps)
-			cv2.putText(frame_cam,display_string3,(20,230), font, 2,(0,255,255),6,cv2.LINE_AA)
+			display_string = 'Perfect reps:{} /10'.format(num_perfect_reps)
+			cv2.putText(frame_cam,display_string,(20,150), font, 2,(0,255,0),6,cv2.LINE_AA)
+			display_string = 'Good reps:{} /10'.format(num_good_reps)
+			cv2.putText(frame_cam,display_string,(20,230), font, 2,(0,255,0),6,cv2.LINE_AA)
+			display_string = 'Ok reps:{} /10'.format(num_ok_reps)
+			cv2.putText(frame_cam,display_string,(20,310), font, 2,(0,255,0),6,cv2.LINE_AA)
 			cv2.waitKey(1)
 			cv2.imshow('Gameified',frame_cam)
 			cv2.waitKey(1)
 			time.sleep(7)
-			return (num_decent_reps,10, list_accuracies) # return number of reps, number of possible reps and list of accuracies for reps
+			return (num_perfect_reps+num_good_reps+num_ok_reps,10, list_accuracies) # return number of reps, number of possible reps and list of accuracies for reps
 
 		frame_vid = project_trainer_skeleton(img = frame_vid, trainer_rows = trainer_rows, trainer_times = trainer_times, timestamp = time_passed)
 		try:
@@ -316,7 +323,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			added_image = cv2.addWeighted(frame_cam[100:100+width,800:800+height,:],alpha,frame_vid[0:width,0:height,:],1-alpha,0)
 		except cv2.error:
 			print("ERROR: could not create vid")
-			time.sleep(.5)
+			time.sleep(.05)
 			continue
 
 		# Change the region with the result
@@ -335,25 +342,18 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# cv2.putText(frame_cam,display_string2,(20,100), font, 1,(0,255,0),2,cv2.LINE_AA)
 		# cv2.putText(frame_cam,display_string3,(20,150), font, 1,(0,255,0),2,cv2.LINE_AA)
 		if good_rep:
-			display_string3 = 'Good rep!!'
+			display_string3 = 'Perfect rep!!!!!'
 			cv2.putText(frame_cam,display_string3,(20,150), font, 2,(200,150,0),3,cv2.LINE_AA)
-			# good_rep = False
-			cv2.waitKey(1)
 		elif decent_rep:
-			display_string3 = 'Decent rep!!'
+			display_string3 = 'Good rep!'
 			cv2.putText(frame_cam,display_string3,(20,150), font, 2,(200,150,0),3,cv2.LINE_AA)
-			# decent_rep = False	
-			cv2.waitKey(1)
 		elif couldbebetter_rep:
-			display_string3 = 'Could be better!'
+			display_string3 = 'Ok rep'
 			cv2.putText(frame_cam,display_string3,(20,150), font, 2,(200,150,0),3,cv2.LINE_AA)
-			# couldbebetter_rep = False
-			cv2.waitKey(1)
 		elif terrible_rep:
 			display_string3 = 'Not so good, you got this!'
 			cv2.putText(frame_cam,display_string3,(20,150), font, 2,(200,150,0),3,cv2.LINE_AA)
-			# terrible_rep = False	
-			cv2.waitKey(1)
+			
 		cv2.waitKey(1)
 
 		cv2.imshow('Gameified',frame_cam)
@@ -549,7 +549,7 @@ def main():
 	# number of reps completed, number of possible reps attainable, avg accuracy for completed reps
 	scores_dict =  dict() # e.g. {'Squats':(40, 50, .90), 'Pushups': (40, 50, .99)} 
 
-	premila = True
+	# premila = True
 	while True:
 		option = run_menu(options = ["Squats", "Pushups", "All", "Jumping Jacks", "BirdDogs"], choose_exercises=True, scores = scores_dict, first_time = True)
 		speed_factor = run_menu(options = ["Slow", "Normal", "Fast"], choose_exercises=False, scores = dict())
@@ -559,36 +559,38 @@ def main():
 			speed_factor = 1
 		elif speed_factor == 2: # fast
 			speed_factor ==1.5
-		if premila == False:
-			if option == 0: 	# squats
-				new_stats = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-				scores_dict = update_dict("Squats", scores_dict, new_stats)
-			elif option == 1:	# pushups
-				new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-				scores_dict = update_dict("Pushups", scores_dict, new_stats)
-			elif option == 2:	# alls
-				new_stats = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-				scores_dict = update_dict("Squats", scores_dict, new_stats)
-				new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-				scores_dict = update_dict("Pushups", scores_dict, new_stats)
-		else:
-			if option == 0: 	# squats
-				new_stats = run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-				scores_dict = update_dict("Squats", scores_dict, new_stats)
-			elif option == 1:	# pushups
-				new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-				scores_dict = update_dict("Pushups", scores_dict, new_stats)
-			elif option == 2:	# alls
-				new_stats = run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-				scores_dict = update_dict("Squats", scores_dict, new_stats)
-				new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-				scores_dict = update_dict("Pushups", scores_dict, new_stats)
-			elif option == 3:	# pushups
-				new_stats = run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
-				scores_dict = update_dict("Jumping Jacks", scores_dict, new_stats)
-			elif option == 4:	# pushups
-				new_stats = run(csv = 'premila_birddogs.csv', video_file= 'videos/premilabirddogs200k.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
-				scores_dict = update_dict("BirdDogs", scores_dict, new_stats)			
+		# if premila == False:
+		# 	if option == 0: 	# squats
+		# 		new_stats = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+		# 		scores_dict = update_dict("Squats", scores_dict, new_stats)
+		# 	elif option == 1:	# pushups
+		# 		new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+		# 		scores_dict = update_dict("Pushups", scores_dict, new_stats)
+		# 	elif option == 2:	# alls
+		# 		new_stats = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+		# 		scores_dict = update_dict("Squats", scores_dict, new_stats)
+		# 		new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+		# 		scores_dict = update_dict("Pushups", scores_dict, new_stats)
+		# else:
+		if option == 0: 	# squats
+			new_stats = run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+			scores_dict = update_dict("Squats", scores_dict, new_stats)
+		elif option == 1:	# pushups
+			new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+			scores_dict = update_dict("Pushups", scores_dict, new_stats)
+		elif option == 2:	# alls
+			new_stats = run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
+			scores_dict = update_dict("Squats", scores_dict, new_stats)
+			new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+			scores_dict = update_dict("Pushups", scores_dict, new_stats)
+			new_stats = run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
+			scores_dict = update_dict("Jumping Jacks", scores_dict, new_stats)
+		elif option == 3:	# pushups
+			new_stats = run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
+			scores_dict = update_dict("Jumping Jacks", scores_dict, new_stats)
+		elif option == 4:	# pushups
+			new_stats = run(csv = 'premila_birddogs.csv', video_file= 'videos/premilabirddogs200k.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
+			scores_dict = update_dict("BirdDogs", scores_dict, new_stats)			
 
 if __name__ == "__main__":
 	main()
