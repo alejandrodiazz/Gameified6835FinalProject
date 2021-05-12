@@ -79,8 +79,8 @@ def calculate_angle_accuracy(img, lmList, to_compare, trainer_rows, trainer_time
 	incorrect_body_parts = list()
 	max_error = 0
 	incorrect_body_parts = to_compare[0]
-	error_floor = 70
-	buffer_region = 20 # this gives us leeway with user/video lag
+	error_floor = 45
+	buffer_region = 10 # this gives us leeway with user/video lag
 
 	for body_parts in to_compare:
 		i1 = index_of_body_part(body_parts[0])
@@ -230,11 +230,9 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		# read from the camera
 		success, frame_cam = cap_cam.read()
 		time_passed = int((current_milli_time() - start) * speed_factor) # Capture the frame at the current time point
-		new_exercise_start = int(start) + int(((count+1)*single_exercise_length))
-		new_exercise_stop = int(start) + int(((count+2)*single_exercise_length)) 
+		new_exercise_start = int(start) + int(((count+0)*single_exercise_length))
+		new_exercise_stop = int(start) + int(((count+1)*single_exercise_length)) 
 		# checking if an exercise has been completed
-		# print('time passed', time_passed, "new ex start", new_exercise_start, "new ex stop", new_exercise_stop)
-		# print("time passed +start ", time_passed+start, "new_ex start", new_exercise_start)
 		if time_passed + (start) >= new_exercise_start: # once
 			mid_rep = False
 			print('happens once reset for a rep')
@@ -272,15 +270,15 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 			terrible_rep = False
 			prev_score /= (accuracies_per_rep+0.0001)
 			score = prev_score
-			if score > 0.8:
+			if score > 0.82:
 				good_rep = True
 				num_perfect_reps += 1
 				playsound.playsound('audio/goodrep.mp3', False)
-			elif score > 0.7:
+			elif score > 0.75:
 				decent_rep = True
 				num_good_reps += 1
 				playsound.playsound('audio/couldbebetter.mp3', False)
-			elif score > 0.6:
+			elif score > 0.65:
 				couldbebetter_rep = True
 				num_ok_reps += 1
 				playsound.playsound('audio/decentrep.mp3', False)
@@ -296,8 +294,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		fps = 1/(cTime - pTime)
 		pTime = cTime
 
-		# ADD ON OTHER VIDEO, does ending work now??
-		# If the last frame is reached, reset the video
+		# If the last frame is reached, return
 		if time_passed >= video_length:
 			count = 0
 			print("Video Done")
@@ -335,6 +332,7 @@ def run(csv, video_file, to_compare, exercise, speed_factor = 1):
 		elif count > 8:
 			display_string_encourg2 = 'Only two more!'
 			cv2.putText(frame_cam,display_string_encourg2,(20,300), font, 2,(255,255,0),2,cv2.LINE_AA)	
+		
 		display_string = 'Frames:{}'.format(round(fps,1)) + ' Accuracy:'+ '%s%%' %'{}'.format(truncate(score*100, 0))  + ' Reps:{}'.format(int(count)) + '/10'
 		cv2.putText(frame_cam,display_string,(20,60), font, 2,(0,255,0),2,cv2.LINE_AA)
 		# display_string2 = 'Focus on your ' + incorrect_angle[0] 
@@ -480,7 +478,7 @@ def run_menu(options, choose_exercises, scores, first_time = False):
 			cv2.putText(frame_cam,options[3],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
 
 			# fifth option
-			cv2.rectangle(frame_cam, option4_start, option4_end, (0,100,100), -1)
+			cv2.rectangle(frame_cam, option4_start, option4_end, (0,200,100), -1)
 			point = (option4_start[0], option4_end[1])
 			cv2.putText(frame_cam,options[4],point, font, menu_font_size,(0,0,0),4,cv2.LINE_AA)
 
@@ -549,9 +547,8 @@ def main():
 	# number of reps completed, number of possible reps attainable, avg accuracy for completed reps
 	scores_dict =  dict() # e.g. {'Squats':(40, 50, .90), 'Pushups': (40, 50, .99)} 
 
-	# premila = True
 	while True:
-		option = run_menu(options = ["Squats", "Pushups", "All", "Jumping Jacks", "BirdDogs"], choose_exercises=True, scores = scores_dict, first_time = True)
+		option = run_menu(options = ["Squats", "Jumping Jacks", "BirdDogs", "All", "Pushups"], choose_exercises=True, scores = scores_dict, first_time = True)
 		speed_factor = run_menu(options = ["Slow", "Normal", "Fast"], choose_exercises=False, scores = dict())
 		if speed_factor == 0:	# slow
 			speed_factor = .5
@@ -559,38 +556,26 @@ def main():
 			speed_factor = 1
 		elif speed_factor == 2: # fast
 			speed_factor ==1.5
-		# if premila == False:
-		# 	if option == 0: 	# squats
-		# 		new_stats = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-		# 		scores_dict = update_dict("Squats", scores_dict, new_stats)
-		# 	elif option == 1:	# pushups
-		# 		new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-		# 		scores_dict = update_dict("Pushups", scores_dict, new_stats)
-		# 	elif option == 2:	# alls
-		# 		new_stats = run(csv = 'squats.csv', video_file= 'videos/squats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
-		# 		scores_dict = update_dict("Squats", scores_dict, new_stats)
-		# 		new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-		# 		scores_dict = update_dict("Pushups", scores_dict, new_stats)
-		# else:
+
 		if option == 0: 	# squats
 			new_stats = run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
 			scores_dict = update_dict("Squats", scores_dict, new_stats)
-		elif option == 1:	# pushups
-			new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-			scores_dict = update_dict("Pushups", scores_dict, new_stats)
-		elif option == 2:	# alls
+		elif option == 1:	# jumping jacks
+			new_stats = run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
+			scores_dict = update_dict("Jumping Jacks", scores_dict, new_stats)
+		elif option == 2:	# bird dogs
+			new_stats = run(csv = 'premila_birddogs.csv', video_file= 'videos/premilabirddogs200k.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
+			scores_dict = update_dict("BirdDogs", scores_dict, new_stats)
+		elif option == 3:	# all
 			new_stats = run(csv = 'premila_squats.csv', video_file= 'videos/premilasquats200k.mp4', to_compare = to_compare_squats, exercise = "Squats", speed_factor = speed_factor)
 			scores_dict = update_dict("Squats", scores_dict, new_stats)
-			new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
-			scores_dict = update_dict("Pushups", scores_dict, new_stats)
 			new_stats = run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
 			scores_dict = update_dict("Jumping Jacks", scores_dict, new_stats)
-		elif option == 3:	# pushups
-			new_stats = run(csv = 'premila_jumps.csv', video_file= 'videos/premilajumps200k.mp4', to_compare = to_compare_jumps, exercise = "Jumping Jacks", speed_factor = speed_factor)
-			scores_dict = update_dict("Jumping Jacks", scores_dict, new_stats)
-		elif option == 4:	# pushups
 			new_stats = run(csv = 'premila_birddogs.csv', video_file= 'videos/premilabirddogs200k.mp4', to_compare = to_compare_birddogs, exercise = "BirdDogs", speed_factor = speed_factor)
-			scores_dict = update_dict("BirdDogs", scores_dict, new_stats)			
+			scores_dict = update_dict("BirdDogs", scores_dict, new_stats)
+		elif option == 4:	# pushups
+			new_stats = run(csv = 'pushups.csv', video_file= 'videos/pushups200k.mp4', to_compare = to_compare_pushups, exercise = "Pushups", speed_factor = speed_factor)
+			scores_dict = update_dict("Pushups", scores_dict, new_stats)			
 
 if __name__ == "__main__":
 	main()
