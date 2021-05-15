@@ -29,6 +29,8 @@ Folder: pythonImplementation
   
 Notes:
 
+These notes are for a Mac OS. This repository will work on any OS, it just requires python and a few packages. The commands for linux are likely 'pip install' instead of 'brew install', and on windows, a zip download is probably required. 
+
 I had to run "brew install mpg321" to download the command for the audio text to speech to work.
 
 It is likely you may have to install several libraries/packages via pip install or some equivalent. But you should be prompted to do so. 
