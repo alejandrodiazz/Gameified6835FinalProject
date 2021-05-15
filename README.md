@@ -7,27 +7,25 @@ All of the files for running the python is in pythonimplementation. Everything e
 
 Important Folders/Files (all others can be ignored):
 
-Folder: pythonImplementation
-
-  Folder/Files within pythonImplementation: 
+Folder: pythonImplementation 
   
-    getTrainerData.py - this file is used to process training data. If the trainer wants to add a new exercise, they should film a video and then process the video using this file to get csv training data. 
+   getTrainerData.py - this file is used to process training data. If the trainer wants to add a new exercise, they should film a video and then process the video using this file to get csv training data. 
     
-    implementation.py - this is the main python file with all the main game logic/ UI / accuracy calculator. Run this to use Gameified.
+   implementation.py - this is the main python file with all the main game logic/ UI / accuracy calculator. Run this to use Gameified.
     
-    videos - this is a folder containing all trainer videos
+   videos - this is a folder containing all trainer videos
     
-    audio - this folder contains all audio recordings used during the game
+   audio - this folder contains all audio recordings used during the game
     
-    .csv - all csv files are training data collected from running getTrainerData.py on videos
+   .csv - all csv files are training data collected from running getTrainerData.py on videos
     
-    videooverlay.py - this file supports playing the trainer video on top of the Gameified UI 
+   videooverlay.py - this file supports playing the trainer video on top of the Gameified UI 
     
-    poseModule.py - 3D skeletal code used to detect pose and positions in order to overlay a skeleton and perform accuracy calculations
+   poseModule.py - 3D skeletal code used to detect pose and positions in order to overlay a skeleton and perform accuracy calculations
     
-    texttospeech.py - this code converts strings to audio mp3 files
+   texttospeech.py - this code converts strings to audio mp3 files
     
-    implementation_threaded.py - can be ignored, for debugging purposes
+   implementation_threaded.py - can be ignored, for debugging purposes
   
 Notes:
 
