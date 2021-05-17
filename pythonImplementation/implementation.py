@@ -505,11 +505,11 @@ def run_menu(options, choose_exercises, scores, first_time = False):
 			cv2.putText(frame_cam,"Stats",(20, 170), font, 2.4,(0,255,0),6,cv2.LINE_AA)
 			display_string = ""
 			if key in calories_dict:
-				display_string = key + ": " + str(scores[key][0]) + " reps, " 
-				display_string += str(scores[key][1]) + " acc, " 
+				display_string = key + ": " + str(scores[key][0]) + " reps, " 					# number of repetitions
+				display_string += str(truncate(sum(scores[key][2])/scores[key][1], 2)) + " acc, " 	# the accuracy: a sum of the accuracies dvided by the number of exercises
 				display_string += str(truncate(scores[key][0] * calories_dict[key], 2))+ " calories"
 			else:
-				display_string = key + ": " + str(scores[key][0]) + " reps, " + str(scores[key][1]) + " acc, " + str(truncate(scores[key][0]*.4, 2))+ " calories"
+				display_string = key + ": " + str(scores[key][0]) + " reps, " + str(truncate(sum(scores[key][2])/scores[key][1], 2)) + " acc, " + str(truncate(scores[key][0]*.4, 2))+ " calories"
 			cv2.putText(frame_cam,display_string,(20,y_location), font, 1.2,(0,255,0),4,cv2.LINE_AA)
 			y_location += 60
 
@@ -531,7 +531,7 @@ def check_box(box_timer, in_box): # return what the timer for each box should be
 
 def update_dict(exercise, scores_dict, new_stats):
 	if exercise in scores_dict:
-		scores_dict[exercise] = (scores_dict[exercise][0]+new_stats[0], scores_dict[exercise][1]+new_stats[1], scores_dict[exercise][0] +new_stats[0])
+		scores_dict[exercise] = (scores_dict[exercise][0]+new_stats[0], scores_dict[exercise][1]+new_stats[1], scores_dict[exercise][2] +new_stats[2])
 	else:
 		scores_dict[exercise] = new_stats
 	return scores_dict 
